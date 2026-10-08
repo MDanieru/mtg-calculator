@@ -56,11 +56,8 @@ body {
     width: auto;
 }
 
-/* By default (Dark Theme), show dark logo, hide light logo */
 #store-logo-light { display: none; }
 #store-logo-dark { display: block; }
-
-/* In Light Theme, show light logo, hide dark logo */
 .light-theme #store-logo-dark { display: none; }
 .light-theme #store-logo-light { display: block; }
 
@@ -392,12 +389,18 @@ button:hover { background-color: var(--accent-hover); }
 }
 .card-count-display .label { font-weight: bold; color: var(--text-main); }
 
-.custom-dropdown select {
+/* Dropdown Uniformity */
+.custom-dropdown select, .version-select {
     background-color: var(--bg-main);
     color: var(--text-main);
     border: 1px solid var(--border-light);
     padding: 8px;
     border-radius: 6px;
+    width: 160px;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .decklist-grid { display: flex; flex-direction: column; gap: 15px; padding: 15px; border-bottom: 1px solid var(--border-light);}
@@ -412,10 +415,7 @@ button:hover { background-color: var(--accent-hover); }
     margin: 10px 0;
 }
 
-/* =========================================
-   CLASSIC & MOXFIELD LAYOUT TOGGLE LOGIC
-   ========================================= */
-
+/* Updated Classic View */
 .card-item {
     display: flex;
     flex-direction: column;
@@ -452,61 +452,7 @@ button:hover { background-color: var(--accent-hover); }
 }
 .card-cost { display: flex; align-items: center; gap: 2px; }
 .card-cost i { box-shadow: -1px 1px 0 #000; border-radius: 50%; }
-
-.version-select {
-    padding: 8px;
-    border-radius: 6px;
-    background: var(--bg-main);
-    color: var(--text-main);
-    border: 1px solid var(--border-light);
-    width: 100%;
-}
 .card-price-display { font-weight: bold; color: var(--accent-primary); text-align: left; }
-
-/* Classic Layout Resets */
-.decklist-grid:not(.moxfield-layout) .unit-price-badge { display: none; }
-.decklist-grid:not(.moxfield-layout) .set-icon-span { display: none; }
-.decklist-grid:not(.moxfield-layout) .column h2 i { display: none; }
-
-/* Moxfield Layout Tweaks */
-.decklist-grid.moxfield-layout .card-item {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    border-radius: 4px;
-    border-bottom: 1px solid var(--border-light);
-    background: transparent;
-    padding: 8px 10px;
-    gap: 15px;
-}
-.decklist-grid.moxfield-layout .card-item:hover { background: var(--row-bg); }
-.decklist-grid.moxfield-layout .card-item-left { flex-grow: 1; flex-wrap: nowrap; overflow: hidden; }
-.decklist-grid.moxfield-layout .card-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-.decklist-grid.moxfield-layout .card-pricing-info {
-    flex-direction: row;
-    align-items: center;
-    gap: 15px;
-    width: auto;
-}
-.decklist-grid.moxfield-layout .version-select {
-    width: auto;
-    max-width: 150px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    font-size: 11px;
-    padding: 6px;
-}
-.decklist-grid.moxfield-layout .card-price-display {
-    text-align: right;
-    min-width: 80px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-/* ========================================= */
-
 
 /* Visual Gallery Styles */
 .visual-gallery-section {
@@ -588,12 +534,10 @@ button:hover { background-color: var(--accent-hover); }
     .chart-box { flex: 1; }
     .decklist-grid { padding: 10px 25px 25px; }
     
-    /* Classic Layout Desktop adjustments */
-    .decklist-grid:not(.moxfield-layout) .card-item { flex-direction: row; align-items: center; padding: 10px 15px; gap: 20px; justify-content: flex-start; }
-    .decklist-grid:not(.moxfield-layout) .card-item-left { flex-grow: 1; }
-    .decklist-grid:not(.moxfield-layout) .card-pricing-info { flex-direction: row; align-items: center; width: auto; }
-    .decklist-grid:not(.moxfield-layout) .version-select { width: auto; max-width: 300px; }
-    .decklist-grid:not(.moxfield-layout) .card-price-display { text-align: left; min-width: 110px; margin-left: 10px; }
+    .card-item { flex-direction: row; align-items: center; padding: 10px 15px; gap: 20px; justify-content: flex-start; }
+    .card-item-left { flex-grow: 1; }
+    .card-pricing-info { flex-direction: row; align-items: center; width: auto; }
+    .card-price-display { text-align: left; min-width: 110px; margin-left: 10px; }
     
     button { width: auto; }
     .visual-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }

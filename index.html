@@ -39,17 +39,17 @@
                 </div>
                 
                 <div class="qty-controls">
-                    <button id="search-qty-minus" class="qty-btn">-</button>
+                    <button type="button" id="search-qty-minus" class="qty-btn">-</button>
                     <span id="search-qty-display" class="qty-display">1</span>
-                    <button id="search-qty-plus" class="qty-btn">+</button>
+                    <button type="button" id="search-qty-plus" class="qty-btn">+</button>
                 </div>
 
-                <button id="add-single-card-btn" class="secondary-btn">Add</button>
+                <button type="button" id="add-single-card-btn" class="secondary-btn">Add</button>
             </div>
         </div>
 
         <textarea id="decklist-input" placeholder="1 Sol Ring&#10;4 Lightning Bolt&#10;1 The One Ring"></textarea>
-        <button id="generate-btn">GENERATE QUOTE</button>
+        <button type="button" id="generate-btn">GENERATE QUOTE</button>
         
         <div id="loading" class="hidden" style="text-align: center; padding: 20px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px;">
             <div id="loading-text" style="font-weight: bold; margin-bottom: 10px;">Connecting to database and fetching market prices...</div>
@@ -63,7 +63,7 @@
     <!-- QUOTATION VIEW (Page 2) -->
     <div class="deck-container hidden" id="deck-section">
         <div class="controls-top">
-            <button id="back-btn" class="back-button">← BACK TO LIST EDITOR</button>
+            <button type="button" id="back-btn" class="back-button">← BACK TO LIST EDITOR</button>
         </div>
 
         <div class="deck-breakdown-box">
@@ -71,11 +71,13 @@
             <!-- 1. Header & Download Buttons -->
             <div class="deck-header-bar">
                 <h2 id="display-deck-name">QUOTATION</h2>
-                <div class="download-group">
-                    <span style="font-size: 12px; color: var(--text-muted); font-weight: bold;">EXPORT QUOTE:</span>
-                    <button class="icon-btn download-main-btn" id="download-txt-btn" title="Download Text File">📄 TXT</button>
-                    <button class="icon-btn download-main-btn html-btn" id="download-pdf-btn" title="Download PDF Document">📄 PDF</button>
-                    <button class="icon-btn download-main-btn html-btn" id="download-html-btn" title="Download Web Page">🌐 HTML</button>
+                <div class="download-group" style="flex-direction: column; align-items: flex-start;">
+                    <span style="font-size: 12px; color: var(--text-muted); font-weight: bold; margin-bottom: 5px;">EXPORT:</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="icon-btn download-main-btn" id="download-txt-btn" title="Download Text File">📄 TXT</button>
+                        <button type="button" class="icon-btn download-main-btn html-btn" id="download-pdf-btn" title="Download PDF Document">📄 PDF</button>
+                        <button type="button" class="icon-btn download-main-btn html-btn" id="download-html-btn" title="Download Web Page">🌐 HTML</button>
+                    </div>
                 </div>
             </div>
 
@@ -83,9 +85,9 @@
             <div class="exchange-bar">
                 <label>Exchange Rate (MXN):</label>
                 <div class="qty-controls">
-                    <button id="rate-minus" class="qty-btn">-</button>
+                    <button type="button" id="rate-minus" class="qty-btn">-</button>
                     <span id="rate-display" class="qty-display">17</span>
-                    <button id="rate-plus" class="qty-btn">+</button>
+                    <button type="button" id="rate-plus" class="qty-btn">+</button>
                 </div>
             </div>
 
@@ -97,7 +99,7 @@
                         <input type="text" id="card-search-input-2" placeholder="Search card..." class="name-input" autocomplete="off" style="margin-bottom:0; padding:8px;">
                         <div id="autocomplete-results-2" class="autocomplete-dropdown hidden"></div>
                     </div>
-                    <button id="add-single-card-btn-2" class="secondary-btn" style="padding: 8px 15px;">Add</button>
+                    <button type="button" id="add-single-card-btn-2" class="secondary-btn" style="padding: 8px 15px;">Add</button>
                 </div>
             </div>
 
@@ -149,7 +151,7 @@
 
             <!-- 5. Charts (Hidden by default) -->
             <div style="text-align: center; padding: 15px; border-bottom: 1px solid var(--border-light);">
-                <button id="toggle-charts-btn" class="secondary-btn">📊 Show Breakdown Charts</button>
+                <button type="button" id="toggle-charts-btn" class="secondary-btn">📊 Show Breakdown Charts</button>
             </div>
             <div class="dashboard hidden" id="dashboard-section">
                 <div class="chart-box">
@@ -172,19 +174,29 @@
                     <span class="label" style="font-size: 16px;">CARD EDITIONS & PRICING</span>
                 </div>
                 <div class="custom-dropdown" style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
-                    <button id="layout-toggle-btn" class="secondary-btn" style="padding: 6px 12px; font-size: 12px;">🔲 Classic View</button>
+                    <select id="group-select">
+                        <option value="Type">Group: Type</option>
+                        <option value="SubType">Group: SubType</option>
+                        <option value="Rarity">Group: Rarity</option>
+                        <option value="Color">Group: Color</option>
+                        <option value="Color Identity">Group: Color Identity</option>
+                        <option value="Mana Value">Group: Mana Value</option>
+                        <option value="Set">Group: Set</option>
+                        <option value="Artist">Group: Artist</option>
+                        <option value="No Grouping">No Grouping</option>
+                    </select>
                     <select id="sort-select">
-                        <option value="type">Sort by Type</option>
-                        <option value="color">Sort by Color</option>
-                        <option value="cost">Sort by Mana Cost</option>
-                        <option value="rarity">Sort by Rarity</option>
+                        <option value="Name">Sort: Name</option>
+                        <option value="Mana Value">Sort: Mana Value</option>
+                        <option value="Price">Sort: Price</option>
+                        <option value="Rarity">Sort: Rarity</option>
+                        <option value="Color">Sort: Color</option>
                     </select>
                 </div>
             </div>
 
             <!-- 6. Detailed Editor List -->
-            <!-- Note: Defaulting to moxfield-layout class -->
-            <div class="decklist-grid moxfield-layout" id="decklist-grid">
+            <div class="decklist-grid" id="decklist-grid">
                 <!-- Cards inject here -->
             </div>
             
@@ -216,6 +228,6 @@
     </div>
 
     <script src="app.js"></script>
-    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: var(--text-muted); font-weight: bold; z-index: 1000; opacity: 0.7;">V38</div>
+    <div style="position: fixed; bottom: 10px; right: 10px; font-size: 12px; color: var(--text-muted); font-weight: bold; z-index: 1000; opacity: 0.7;">V40</div>
 </body>
 </html>

@@ -28,7 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const themeToggleBtn = document.getElementById('theme-toggle');
     const toggleChartsBtn = document.getElementById('toggle-charts-btn');
-    const layoutToggleBtn = document.getElementById('layout-toggle-btn');
+    
+    // Sort/Group
+    const groupSelect = document.getElementById('group-select');
+    const sortSelect = document.getElementById('sort-select');
     
     // Exchange Rate Controls
     const rateMinus = document.getElementById('rate-minus');
@@ -67,7 +70,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let notFoundCards = [];
     let searchTimeout = null;
     let charts = [];
-    let isMoxfieldView = true; // Default
 
     // Theme Toggle
     themeToggleBtn.addEventListener('click', () => {
@@ -76,17 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
             themeToggleBtn.innerText = '🌙 Dark Mode';
         } else {
             themeToggleBtn.innerText = '☀️ Light Mode';
-        }
-    });
-
-    // Layout Toggle
-    layoutToggleBtn.addEventListener('click', () => {
-        isMoxfieldView = !isMoxfieldView;
-        layoutToggleBtn.innerText = isMoxfieldView ? '🔲 Classic View' : '🔲 Moxfield View';
-        if(isMoxfieldView) {
-            decklistGrid.classList.add('moxfield-layout');
-        } else {
-            decklistGrid.classList.remove('moxfield-layout');
         }
     });
 
@@ -257,30 +248,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const sortSelect = document.getElementById('sort-select');
-    if (sortSelect) sortSelect.addEventListener('change', () => updateAppUI());
+    groupSelect.addEventListener('change', () => updateAppUI());
+    sortSelect.addEventListener('change', () => updateAppUI());
 
     // Helper: Collect required tokens
-    function getRequiredTokens() {
-        let requiredTokens = new Set();
+    async function getRequiredTokens() {
+        let tokenIds = new Set();
+        let tokens = [];
+
         deckData.forEach(card => {
             if (card.all_parts) {
                 card.all_parts.forEach(part => {
-                    if (part.component === 'token' || part.component === 'emblem') {
-                        requiredTokens.add(part.name);
+                    if ((part.component === 'token' || part.component === 'emblem') && !tokenIds.has(part.id)) {
+                        tokenIds.add(part.id);
+                        tokens.push({ id: part.id, name: part.name, uri: part.uri, image: null });
                     }
                 });
             }
         });
-        return Array.from(requiredTokens);
+        
+        for (let token of tokens) {
+            try {
+                const res = await fetch(token.uri);
+                const tokenData = await res.json();
+                let imgUri = tokenData.image_uris ? tokenData.image_uris.normal : '';
+                if (!imgUri && tokenData.card_faces && tokenData.card_faces[0].image_uris) imgUri = tokenData.card_faces[0].image_uris.normal;
+                token.image = imgUri;
+            } catch (e) {}
+        }
+        return tokens;
     }
 
     // TXT DOWNLOAD
     if (downloadTxtBtn) {
-        downloadTxtBtn.addEventListener('click', () => {
+        downloadTxtBtn.addEventListener('click', async () => {
             let rate = currentExchangeRate;
             let txt = `================================================================================\n`;
-            txt += `                    SCION OF THE SOULS - OFFICIAL QUOTATION                     \n`;
+            txt += `                    SCION OF THE SOULS - OFFICIAL QUOTATION                 V40\n`;
             txt += `================================================================================\n`;
             txt += `WhatsApp: 55 3455 5002\n`;
             txt += `Address:  Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX\n`;
@@ -292,22 +296,20 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Group cards by type
             const groups = {};
-            deckData.forEach(card => {
-                let key = 'Other';
-                let tLine = (card.type_line || '').toLowerCase();
-                if (tLine.includes('creature')) key = 'Creatures';
-                else if (tLine.includes('instant')) key = 'Instants';
-                else if (tLine.includes('sorcery')) key = 'Sorceries';
-                else if (tLine.includes('artifact')) key = 'Artifacts';
-                else if (tLine.includes('enchantment')) key = 'Enchantments';
-                else if (tLine.includes('planeswalker')) key = 'Planeswalkers';
-                else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
+            const groupMode = groupSelect.value;
+            const sortMode = sortSelect.value;
+            
+            let sortedData = sortCards([...deckData], sortMode);
 
+            sortedData.forEach(card => {
+                let key = getGroupKey(card, groupMode);
                 if (!groups[key]) groups[key] = [];
                 groups[key].push(card);
             });
 
-            let orderedKeys = ['Creatures', 'Planeswalkers', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other'].filter(k => groups[k]);
+            let orderedKeys = Object.keys(groups).sort();
+            // Force Custom Order for Type
+            if (groupMode === 'Type') orderedKeys = ['Creatures', 'Planeswalkers', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other'].filter(k => groups[k]);
 
             orderedKeys.forEach(groupName => {
                 const groupCards = groups[groupName];
@@ -348,10 +350,10 @@ document.addEventListener('DOMContentLoaded', () => {
             txt += `GRAND TOTAL (${totalQty} CARDS):`.padEnd(65, ' ') + `$${grandUsd.toFixed(2)} USD ($${grandMxn.toFixed(2)} MXN)\n`;
             txt += `================================================================================\n`;
 
-            let reqTokens = getRequiredTokens();
+            let reqTokens = await getRequiredTokens();
             if (reqTokens.length > 0) {
                 txt += `\n*** REQUIRED TOKENS (Reference only - NOT included in quoted price) ***\n`;
-                reqTokens.forEach(t => txt += `- ${t}\n`);
+                reqTokens.forEach(t => txt += `- ${t.name}\n`);
             }
 
             const blob = new Blob([txt], { type: 'text/plain' });
@@ -368,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // PDF DOWNLOAD
     if (downloadPdfBtn) {
-        downloadPdfBtn.addEventListener('click', () => {
+        downloadPdfBtn.addEventListener('click', async () => {
             downloadPdfBtn.innerHTML = '⏳ GENERATING...';
             downloadPdfBtn.disabled = true;
 
@@ -378,8 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             let tableRows = '';
             let imageGrid = '';
+            
+            let sortedData = sortCards([...deckData], sortSelect.value);
 
-            deckData.forEach(card => {
+            sortedData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
                 totalQty += card.qty;
@@ -391,12 +395,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let finish = 'Normal';
                 if(verStr.includes('Foil')) finish = 'Foil';
                 if(verStr.includes('Etched')) finish = 'Etched';
+                
+                let setIcon = exp !== 'N/A' ? `<i class="ss ss-${exp.toLowerCase()}" style="margin-right: 4px; color: #475569;"></i>` : '';
 
                 tableRows += `
-                    <tr>
+                    <tr style="page-break-inside: avoid;">
                         <td style="text-align:center; font-weight:bold; padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.qty}</td>
                         <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.name}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${exp}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${setIcon}${exp}</td>
                         <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${finish}</td>
                         <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${p.toFixed(2)}</td>
                         <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty).toFixed(2)}</td>
@@ -409,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if(imgUri) {
                     imageGrid += `
-                        <div style="position:relative; width: 140px; margin: 10px;">
+                        <div style="position:relative; width: 140px; margin: 10px; page-break-inside: avoid; display: inline-block;">
                             <img src="${imgUri}" crossorigin="anonymous" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
                             <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:25px; height:25px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white; font-size:12px;">${card.qty}</div>
                         </div>
@@ -417,27 +423,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            let reqTokens = getRequiredTokens();
+            let reqTokens = await getRequiredTokens();
             let tokensHtml = '';
             if (reqTokens.length > 0) {
+                let tokenImagesHtml = '';
+                for(const t of reqTokens) {
+                    if(t.image) {
+                        tokenImagesHtml += `<div style="width: 120px; page-break-inside: avoid; display: inline-block;"><img src="${t.image}" crossorigin="anonymous" style="width:100%; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>`;
+                    }
+                }
+            
                 tokensHtml = `
-                    <div style="margin-top: 20px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; page-break-inside: avoid;">
-                        <h3 style="margin-top:0; color: #b45309; font-size: 16px;">Required Tokens (Reference Only)</h3>
-                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">These tokens are required by the cards in this list but are NOT included in the quoted price.</p>
-                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                    <div style="margin-top: 30px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; page-break-inside: avoid;">
+                        <h3 style="margin-top:0; color: #b45309; font-size: 14px;">Required Tokens</h3>
+                        <p style="margin: 0 0 10px 0; font-size: 11px; color: #92400e; font-weight: bold;">(Reference Only. These tokens are NOT included in the quoted price.)</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${tokenImagesHtml}
+                        </div>
+                    </div>
                 `;
-                reqTokens.forEach(t => tokensHtml += `<li>${t}</li>`);
-                tokensHtml += `</ul></div>`;
             }
 
             let grandMxn = grandUsd * rate;
 
             let htmlContent = `
                 <div style="font-family: Helvetica, Arial, sans-serif; padding: 20px; color: #0f172a; max-width: 800px; margin: 0 auto;">
-                    
+                    <link href="https://cdn.jsdelivr.net/npm/keyrune@latest/css/keyrune.min.css" rel="stylesheet">
                     <div style="text-align: center; border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
                         <img src="logo-light.png" style="height: 50px; margin-bottom: 5px;">
-                        <h1 style="margin: 0; color: #0f172a; text-transform: uppercase; font-size: 24px;">SCION OF THE SOULS</h1>
+                        <h1 style="margin: 0; color: #0f172a; text-transform: uppercase; font-size: 24px;">SCION OF THE SOULS <span style="font-size: 10px; color: #94a3b8;">V40</span></h1>
                         <p style="margin: 5px 0; color: #475569; font-size: 12px;">Card Quotation & Order Summary</p>
                     </div>
                     
@@ -451,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>
 
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; page-break-inside: auto;">
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
                         <thead>
                             <tr style="background: #0f172a; color: white;">
                                 <th style="padding: 8px; text-align: center;">Qty</th>
@@ -467,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${tableRows}
                         </tbody>
                         <tfoot>
-                            <tr style="background: #f1f5f9; font-weight: bold; font-size: 14px;">
+                            <tr style="background: #f1f5f9; font-weight: bold; font-size: 14px; page-break-inside: avoid;">
                                 <td style="text-align:center; padding: 10px;">${totalQty}</td>
                                 <td colspan="4" style="text-align:right; padding: 10px;">GRAND TOTAL:</td>
                                 <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandUsd.toFixed(2)}</td>
@@ -476,11 +490,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tfoot>
                     </table>
 
-                    ${tokensHtml}
-
-                    <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 30px; border-top: 2px dashed #cbd5e1; padding-top: 20px;">
+                    <div style="text-align: center; margin-top: 30px; border-top: 2px dashed #cbd5e1; padding-top: 20px;">
                         ${imageGrid}
                     </div>
+
+                    ${tokensHtml}
                 </div>
             `;
 
@@ -497,12 +511,21 @@ document.addEventListener('DOMContentLoaded', () => {
               margin:       0.3,
               filename:     'Scion-Quote.pdf',
               image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2, useCORS: true, allowTaint: true },
+              html2canvas:  { scale: 2, useCORS: true, allowTaint: true, windowWidth: 800 },
               jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
             setTimeout(() => {
-                html2pdf().set(opt).from(element).save().then(() => {
+                html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
+                    const url = URL.createObjectURL(pdfBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'Scion-Quote.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    
                     document.body.removeChild(element);
                     downloadPdfBtn.innerHTML = '📄 PDF';
                     downloadPdfBtn.disabled = false;
@@ -512,21 +535,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     downloadPdfBtn.innerHTML = '📄 PDF';
                     downloadPdfBtn.disabled = false;
                 });
-            }, 500);
+            }, 1800); // Increased wait time to ensure font and images render
         });
     }
 
     // HTML DOWNLOAD
     if (downloadHtmlBtn) {
-        downloadHtmlBtn.addEventListener('click', () => {
+        downloadHtmlBtn.addEventListener('click', async () => {
             let rate = currentExchangeRate;
             let grandUsd = 0;
             let totalQty = 0;
             
             let tableRows = '';
             let imageGrid = '';
+            
+            let sortedData = sortCards([...deckData], sortSelect.value);
 
-            deckData.forEach(card => {
+            sortedData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
                 totalQty += card.qty;
@@ -538,12 +563,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let finish = 'Normal';
                 if(verStr.includes('Foil')) finish = 'Foil';
                 if(verStr.includes('Etched')) finish = 'Etched';
+                
+                let setIcon = exp !== 'N/A' ? `<i class="ss ss-${exp.toLowerCase()}" style="margin-right: 4px; color: #475569;"></i>` : '';
 
                 tableRows += `
                     <tr>
                         <td style="text-align:center; font-weight:bold;">${card.qty}</td>
                         <td>${card.name}</td>
-                        <td>${exp}</td>
+                        <td>${setIcon}${exp}</td>
                         <td>${finish}</td>
                         <td style="text-align:right;">$${p.toFixed(2)}</td>
                         <td style="text-align:right;">$${(p * card.qty).toFixed(2)}</td>
@@ -564,17 +591,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            let reqTokens = getRequiredTokens();
+            let reqTokens = await getRequiredTokens();
             let tokensHtml = '';
             if (reqTokens.length > 0) {
+                let tokenImagesHtml = '';
+                for(const t of reqTokens) {
+                    if(t.image) {
+                        tokenImagesHtml += `<div style="width: 140px;"><img src="${t.image}" crossorigin="anonymous" style="width:100%; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>`;
+                    } else {
+                        tokenImagesHtml += `<div style="background: white; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #b45309; border: 1px solid #fcd34d;">${t.name}</div>`;
+                    }
+                }
+            
                 tokensHtml = `
-                    <div style="margin-top: 30px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px;">
-                        <h3 style="margin-top:0; color: #b45309; font-size: 16px;">Required Tokens (Reference Only)</h3>
-                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">These tokens are required by the cards in this list but are NOT included in the quoted price.</p>
-                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                    <div style="margin-top: 40px; padding: 20px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 8px;">
+                        <h3 style="margin-top:0; color: #b45309; font-size: 16px;">Required Tokens</h3>
+                        <p style="margin: 0 0 15px 0; font-size: 13px; color: #92400e; font-weight: bold;">(Reference Only. These tokens are NOT included in the quoted price.)</p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 15px;">
+                            ${tokenImagesHtml}
+                        </div>
+                    </div>
                 `;
-                reqTokens.forEach(t => tokensHtml += `<li>${t}</li>`);
-                tokensHtml += `</ul></div>`;
             }
 
             let grandMxn = grandUsd * rate;
@@ -585,6 +622,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Scion of the Souls - Quotation</title>
+                <link href="https://cdn.jsdelivr.net/npm/keyrune@latest/css/keyrune.min.css" rel="stylesheet">
                 <style>
                     body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
                     .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
@@ -603,7 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>SCION OF THE SOULS</h1>
+                        <h1>SCION OF THE SOULS <span style='font-size: 12px; color: #94a3b8;'>V40</span></h1>
                         <p>Card Quotation & Order Summary</p>
                     </div>
                     
@@ -630,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td style="text-align:center;">${totalQty}</td>
+                                <td style="text-align:center; font-weight:bold;">${totalQty}</td>
                                 <td colspan="4" style="text-align:right;">GRAND TOTAL:</td>
                                 <td style="text-align:right; color:#0284c7;">$${grandUsd.toFixed(2)}</td>
                                 <td style="text-align:right; color:#0284c7;">$${grandMxn.toFixed(2)}</td>
@@ -638,11 +676,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tfoot>
                     </table>
 
-                    ${tokensHtml}
-
                     <div class="gallery">
                         ${imageGrid}
                     </div>
+
+                    ${tokensHtml}
                 </div>
             </body>
             </html>`;
@@ -765,6 +803,54 @@ document.addEventListener('DOMContentLoaded', () => {
         return { valid: validCards, invalid: invalidCards };
     }
 
+    function sortCards(cards, sortMode) {
+        return cards.sort((a, b) => {
+            if(sortMode === 'Name') return a.name.localeCompare(b.name);
+            if(sortMode === 'Mana Value') return (a.cmc || 0) - (b.cmc || 0);
+            if(sortMode === 'Price') return (b.selectedPrice || 0) - (a.selectedPrice || 0);
+            if(sortMode === 'Color') {
+                let ca = (a.colors && a.colors.length > 0) ? a.colors[0] : 'Z';
+                let cb = (b.colors && b.colors.length > 0) ? b.colors[0] : 'Z';
+                return ca.localeCompare(cb);
+            }
+            if(sortMode === 'Rarity') {
+                const rMap = {'common':1, 'uncommon':2, 'rare':3, 'mythic':4};
+                return (rMap[b.rarity] || 0) - (rMap[a.rarity] || 0);
+            }
+            return 0;
+        });
+    }
+
+    function getGroupKey(card, groupMode) {
+        if(groupMode === 'Type') {
+            let t = (card.type_line || '').split('—')[0].toLowerCase();
+            if (t.includes('creature')) return 'Creatures';
+            if (t.includes('instant')) return 'Instants';
+            if (t.includes('sorcery')) return 'Sorceries';
+            if (t.includes('artifact')) return 'Artifacts';
+            if (t.includes('enchantment')) return 'Enchantments';
+            if (t.includes('planeswalker')) return 'Planeswalkers';
+            if (t.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) return 'Lands';
+            return 'Other';
+        }
+        if(groupMode === 'SubType') {
+            if(!card.type_line.includes('—')) return 'No Subtype';
+            return card.type_line.split('—')[1].trim().split(' ')[0] || 'Unknown';
+        }
+        if(groupMode === 'Rarity') return (card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)) || 'Other';
+        if(groupMode === 'Color' || groupMode === 'Color Identity') {
+            let colors = groupMode === 'Color' ? card.colors : card.color_identity;
+            if(!colors || colors.length === 0) return 'Colorless';
+            if(colors.length > 1) return 'Multicolor';
+            const cMap = {'W': 'White', 'U': 'Blue', 'B': 'Black', 'R': 'Red', 'G': 'Green'};
+            return cMap[colors[0]] || 'Other';
+        }
+        if(groupMode === 'Mana Value') return `MV ${Math.floor(card.cmc || 0)}`;
+        if(groupMode === 'Set') return card.set_name || 'Unknown';
+        if(groupMode === 'Artist') return card.artist || 'Unknown';
+        return 'All Cards';
+    }
+
     function updateAppUI() {
         let totalQty = 0;
         let totalUsd = 0;
@@ -788,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderMissingCards();
         renderAccountingTable();
         renderDashboard();
-        renderDecklist(deckData, document.getElementById('sort-select').value);
+        renderDecklist(deckData, document.getElementById('group-select').value, document.getElementById('sort-select').value);
         renderVisualGallery();
         renderTokens();
     }
@@ -809,7 +895,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderAccountingTable() {
         accountingTableBody.innerHTML = '';
-        deckData.forEach(card => {
+        
+        // Sort for table presentation
+        let sortedData = sortCards([...deckData], sortSelect.value);
+        
+        sortedData.forEach(card => {
             let p = card.selectedPrice || 1.00;
             let tr = document.createElement('tr');
             
@@ -820,11 +910,13 @@ document.addEventListener('DOMContentLoaded', () => {
             let finish = 'Normal';
             if(verStr.includes('Foil')) finish = 'Foil';
             if(verStr.includes('Etched')) finish = 'Etched';
+            
+            let setIcon = exp !== 'N/A' ? `<i class="ss ss-${exp.toLowerCase()}" style="margin-right: 4px; color: var(--text-muted);"></i>` : '';
 
             tr.innerHTML = `
                 <td>${card.qty}</td>
                 <td>${card.name}</td>
-                <td>${exp}</td>
+                <td>${setIcon}${exp}</td>
                 <td>${finish}</td>
                 <td style="text-align:right;">$${p.toFixed(2)}</td>
                 <td style="text-align:right;">$${(p * card.qty).toFixed(2)}</td>
@@ -899,7 +991,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
-    function renderDecklist(cards, sortMode) {
+    function renderDecklist(cards, groupMode, sortMode) {
         const grid = document.getElementById('decklist-grid');
         grid.innerHTML = '';
 
@@ -915,53 +1007,30 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const groups = {};
-        cards.forEach(card => {
-            let key = 'Other';
-            let tLine = (card.type_line || '').toLowerCase();
+        let sortedCards = sortCards([...cards], sortMode);
 
-            if (sortMode === 'type') {
-                if (tLine.includes('creature')) key = 'Creatures';
-                else if (tLine.includes('instant')) key = 'Instants';
-                else if (tLine.includes('sorcery')) key = 'Sorceries';
-                else if (tLine.includes('artifact')) key = 'Artifacts';
-                else if (tLine.includes('enchantment')) key = 'Enchantments';
-                else if (tLine.includes('planeswalker')) key = 'Planeswalkers';
-                else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
-            } else if (sortMode === 'color') {
-                let cColors = card.color_identity || card.colors || [];
-                if (cColors.length === 0) key = 'Colorless';
-                else if (cColors.length > 1) key = 'Multicolor';
-                else {
-                    const cMap = {'W': 'White', 'U': 'Blue', 'B': 'Black', 'R': 'Red', 'G': 'Green'};
-                    key = cMap[cColors[0]];
-                }
-            } else if (sortMode === 'cost') {
-                if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
-                else key = `${Math.floor(card.cmc || 0)}`;
-            } else if (sortMode === 'rarity') {
-                const rMap = {'common': 'Common', 'uncommon': 'Uncommon', 'rare': 'Rare', 'mythic': 'Mythic Rare'};
-                key = rMap[card.rarity] || 'Other';
-            }
-
+        sortedCards.forEach(card => {
+            let key = getGroupKey(card, groupMode);
             if (!groups[key]) groups[key] = [];
             groups[key].push(card);
         });
 
         let orderedKeys = Object.keys(groups).sort();
-        if (sortMode === 'type') orderedKeys = ['Creatures', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Lands', 'Other'].filter(k => groups[k]);
-        if (sortMode === 'color') orderedKeys = ['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor', 'Colorless', 'Other'].filter(k => groups[k]);
-        if (sortMode === 'rarity') orderedKeys = ['Common', 'Uncommon', 'Rare', 'Mythic Rare', 'Other'].filter(k => groups[k]);
-        if (sortMode === 'cost') orderedKeys = Object.keys(groups).sort((a,b) => (a==='Lands'?1:(b==='Lands'?-1:parseInt(a)-parseInt(b))));
+        if (groupMode === 'Type') orderedKeys = ['Creatures', 'Planeswalkers', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other'].filter(k => groups[k]);
+        if (groupMode === 'Color' || groupMode === 'Color Identity') orderedKeys = ['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor', 'Colorless', 'Other'].filter(k => groups[k]);
+        if (groupMode === 'Rarity') orderedKeys = ['Common', 'Uncommon', 'Rare', 'Mythic', 'Other'].filter(k => groups[k]);
+        if (groupMode === 'Mana Value') orderedKeys = Object.keys(groups).sort((a,b) => parseInt(a.replace('MV ', '')) - parseInt(b.replace('MV ', '')));
 
         orderedKeys.forEach(groupName => {
             const groupCards = groups[groupName];
             const totalCards = groupCards.reduce((sum, c) => sum + c.qty, 0);
             
             let iconClass = typeIcons[groupName] || 'ms-dfc';
+            let iconHtml = groupMode === 'Type' ? `<i class="ms ${iconClass} header-type-icon" style="margin-right:6px;"></i>` : '';
             
             const col = document.createElement('div');
             col.className = 'column';
-            col.innerHTML = `<h2><span><i class="ms ${iconClass} header-type-icon" style="margin-right:6px;"></i>${groupName}</span> <span>${totalCards} CARDS</span></h2>`;
+            col.innerHTML = `<h2><span>${iconHtml}${groupName}</span> <span>${totalCards} CARDS</span></h2>`;
             
             groupCards.forEach(card => {
                 const item = document.createElement('div');
@@ -992,9 +1061,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="card-item-left">
                         <button class="remove-card-btn" data-cardname="${card.name}" title="Remove Card">${trashIcon}</button>
                         <div class="qty-controls">
-                            <button class="qty-btn minus-btn">-</button>
+                            <button type="button" class="qty-btn minus-btn">-</button>
                             <span class="qty-display">${card.qty}</span>
-                            <button class="qty-btn plus-btn">+</button>
+                            <button type="button" class="qty-btn plus-btn">+</button>
                         </div>
                         <span class="card-name" title="Tap to view image">${card.name}</span>
                         <div class="card-cost">${costHtml}</div>
