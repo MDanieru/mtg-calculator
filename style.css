@@ -51,16 +51,18 @@ body {
     gap: 12px;
 }
 
-#store-logo {
+#store-logo-dark, #store-logo-light {
     height: 45px;
     width: auto;
-    transition: filter 0.3s;
 }
 
-/* Make logo white in dark theme if it's currently dark blue */
-.dark-theme #store-logo {
-    filter: brightness(0) invert(1);
-}
+/* By default (Dark Theme), show dark logo, hide light logo */
+#store-logo-light { display: none; }
+#store-logo-dark { display: block; }
+
+/* In Light Theme, show light logo, hide dark logo */
+.light-theme #store-logo-dark { display: none; }
+.light-theme #store-logo-light { display: block; }
 
 .brand-text h1 {
     margin: 0;
