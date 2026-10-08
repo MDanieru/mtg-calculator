@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressBarFill = document.getElementById('progress-bar-fill');
     
     const downloadTxtBtn = document.getElementById('download-txt-btn');
-    const downloadPdfBtn = document.getElementById('download-pdf-btn');
     const downloadHtmlBtn = document.getElementById('download-html-btn');
     
     const themeToggleBtn = document.getElementById('theme-toggle');
@@ -284,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         downloadTxtBtn.addEventListener('click', async () => {
             let rate = currentExchangeRate;
             let txt = `================================================================================\n`;
-            txt += `                    SCION OF THE SOULS - OFFICIAL QUOTATION                 V40\n`;
+            txt += `                    SCION OF THE SOULS - OFFICIAL QUOTATION                 V41\n`;
             txt += `================================================================================\n`;
             txt += `WhatsApp: 55 3455 5002\n`;
             txt += `Address:  Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX\n`;
@@ -365,177 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-        });
-    }
-
-    // PDF DOWNLOAD
-    if (downloadPdfBtn) {
-        downloadPdfBtn.addEventListener('click', async () => {
-            downloadPdfBtn.innerHTML = '⏳ GENERATING...';
-            downloadPdfBtn.disabled = true;
-
-            let rate = currentExchangeRate;
-            let grandUsd = 0;
-            let totalQty = 0;
-            
-            let tableRows = '';
-            let imageGrid = '';
-            
-            let sortedData = sortCards([...deckData], sortSelect.value);
-
-            sortedData.forEach(card => {
-                let p = card.selectedPrice || 1.00;
-                grandUsd += p * card.qty;
-                totalQty += card.qty;
-                
-                let verStr = card.selectedVersionName || '';
-                let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
-                let exp = setMatch ? setMatch[1] : 'N/A';
-                
-                let finish = 'Normal';
-                if(verStr.includes('Foil')) finish = 'Foil';
-                if(verStr.includes('Etched')) finish = 'Etched';
-                
-                let setIcon = exp !== 'N/A' ? `<i class="ss ss-${exp.toLowerCase()}" style="margin-right: 4px; color: #475569;"></i>` : '';
-
-                tableRows += `
-                    <tr style="page-break-inside: avoid;">
-                        <td style="text-align:center; font-weight:bold; padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.qty}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.name}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${setIcon}${exp}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${finish}</td>
-                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${p.toFixed(2)}</td>
-                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty).toFixed(2)}</td>
-                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty * rate).toFixed(2)}</td>
-                    </tr>
-                `;
-
-                let imgUri = card.image_uris ? card.image_uris.normal : '';
-                if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
-                
-                if(imgUri) {
-                    imageGrid += `
-                        <div style="position:relative; width: 140px; margin: 10px; page-break-inside: avoid; display: inline-block;">
-                            <img src="${imgUri}" crossorigin="anonymous" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                            <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:25px; height:25px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white; font-size:12px;">${card.qty}</div>
-                        </div>
-                    `;
-                }
-            });
-
-            let reqTokens = await getRequiredTokens();
-            let tokensHtml = '';
-            if (reqTokens.length > 0) {
-                let tokenImagesHtml = '';
-                for(const t of reqTokens) {
-                    if(t.image) {
-                        tokenImagesHtml += `<div style="width: 120px; page-break-inside: avoid; display: inline-block;"><img src="${t.image}" crossorigin="anonymous" style="width:100%; border-radius:8px; box-shadow: 0 4px 8px rgba(0,0,0,0.15);"></div>`;
-                    }
-                }
-            
-                tokensHtml = `
-                    <div style="margin-top: 30px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; page-break-inside: avoid;">
-                        <h3 style="margin-top:0; color: #b45309; font-size: 14px;">Required Tokens</h3>
-                        <p style="margin: 0 0 10px 0; font-size: 11px; color: #92400e; font-weight: bold;">(Reference Only. These tokens are NOT included in the quoted price.)</p>
-                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
-                            ${tokenImagesHtml}
-                        </div>
-                    </div>
-                `;
-            }
-
-            let grandMxn = grandUsd * rate;
-
-            let htmlContent = `
-                <div style="font-family: Helvetica, Arial, sans-serif; padding: 20px; color: #0f172a; max-width: 800px; margin: 0 auto;">
-                    <link href="https://cdn.jsdelivr.net/npm/keyrune@latest/css/keyrune.min.css" rel="stylesheet">
-                    <div style="text-align: center; border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
-                        <img src="logo-light.png" style="height: 50px; margin-bottom: 5px;">
-                        <h1 style="margin: 0; color: #0f172a; text-transform: uppercase; font-size: 24px;">SCION OF THE SOULS <span style="font-size: 10px; color: #94a3b8;">V40</span></h1>
-                        <p style="margin: 5px 0; color: #475569; font-size: 12px;">Card Quotation & Order Summary</p>
-                    </div>
-                    
-                    <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between;">
-                        <div>
-                            <strong>WhatsApp:</strong> 55 3455 5002<br>
-                            <strong>Address:</strong> Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX<br>
-                        </div>
-                        <div style="text-align: right;">
-                            <strong>Exchange Rate:</strong> 1 USD = $${rate.toFixed(2)} MXN
-                        </div>
-                    </div>
-
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px;">
-                        <thead>
-                            <tr style="background: #0f172a; color: white;">
-                                <th style="padding: 8px; text-align: center;">Qty</th>
-                                <th style="padding: 8px; text-align: left;">Card Name</th>
-                                <th style="padding: 8px; text-align: left;">Set</th>
-                                <th style="padding: 8px; text-align: left;">Finish</th>
-                                <th style="padding: 8px; text-align: right;">Unit USD</th>
-                                <th style="padding: 8px; text-align: right;">Total USD</th>
-                                <th style="padding: 8px; text-align: right;">Total MXN</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                        <tfoot>
-                            <tr style="background: #f1f5f9; font-weight: bold; font-size: 14px; page-break-inside: avoid;">
-                                <td style="text-align:center; padding: 10px;">${totalQty}</td>
-                                <td colspan="4" style="text-align:right; padding: 10px;">GRAND TOTAL:</td>
-                                <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandUsd.toFixed(2)}</td>
-                                <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandMxn.toFixed(2)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <div style="text-align: center; margin-top: 30px; border-top: 2px dashed #cbd5e1; padding-top: 20px;">
-                        ${imageGrid}
-                    </div>
-
-                    ${tokensHtml}
-                </div>
-            `;
-
-            const element = document.createElement('div');
-            element.innerHTML = htmlContent;
-            
-            // Attach to DOM temporarily so html2canvas can read it properly
-            element.style.position = 'absolute';
-            element.style.left = '-9999px';
-            element.style.top = '0';
-            document.body.appendChild(element);
-
-            const opt = {
-              margin:       0.3,
-              filename:     'Scion-Quote.pdf',
-              image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2, useCORS: true, allowTaint: true, windowWidth: 800 },
-              jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-
-            setTimeout(() => {
-                html2pdf().set(opt).from(element).outputPdf('blob').then(function(pdfBlob) {
-                    const url = URL.createObjectURL(pdfBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'Scion-Quote.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    setTimeout(() => URL.revokeObjectURL(url), 1000);
-                    
-                    document.body.removeChild(element);
-                    downloadPdfBtn.innerHTML = '📄 PDF';
-                    downloadPdfBtn.disabled = false;
-                }).catch(err => {
-                    console.error("PDF Error:", err);
-                    document.body.removeChild(element);
-                    downloadPdfBtn.innerHTML = '📄 PDF';
-                    downloadPdfBtn.disabled = false;
-                });
-            }, 1800); // Increased wait time to ensure font and images render
         });
     }
 
@@ -641,8 +469,15 @@ document.addEventListener('DOMContentLoaded', () => {
             <body>
                 <div class="container">
                     <div class="header">
-                        <h1>SCION OF THE SOULS <span style='font-size: 12px; color: #94a3b8;'>V40</span></h1>
+                        <h1>SCION OF THE SOULS <span style='font-size: 12px; color: #94a3b8;'>V41</span></h1>
                         <p>Card Quotation & Order Summary</p>
+                    </div>
+                    <div style="background-color: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin-bottom: 25px; border-radius: 4px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                        <span style="font-size: 24px;">💻</span>
+                        <div>
+                            <strong style="color: #0369a1; display: block; margin-bottom: 4px; font-size: 15px;">Optimal Viewing Experience</strong>
+                            <span style="color: #0c4a6e; font-size: 13px; line-height: 1.4; display: block;">To ensure all card images load perfectly, please open this file on a <strong>desktop computer (PC or Mac)</strong>. Mobile browsers natively block local files from displaying external images for security reasons.</span>
+                        </div>
                     </div>
                     
                     <div class="contact">
@@ -1021,16 +856,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (groupMode === 'Rarity') orderedKeys = ['Common', 'Uncommon', 'Rare', 'Mythic', 'Other'].filter(k => groups[k]);
         if (groupMode === 'Mana Value') orderedKeys = Object.keys(groups).sort((a,b) => parseInt(a.replace('MV ', '')) - parseInt(b.replace('MV ', '')));
 
+        const colorIcons = { 'White': 'ms-w ms-cost', 'Blue': 'ms-u ms-cost', 'Black': 'ms-b ms-cost', 'Red': 'ms-r ms-cost', 'Green': 'ms-g ms-cost', 'Multicolor': 'ms-multicolor ms-cost', 'Colorless': 'ms-c ms-cost' };
         orderedKeys.forEach(groupName => {
             const groupCards = groups[groupName];
             const totalCards = groupCards.reduce((sum, c) => sum + c.qty, 0);
             
-            let iconClass = typeIcons[groupName] || 'ms-dfc';
-            let iconHtml = groupMode === 'Type' ? `<i class="ms ${iconClass} header-type-icon" style="margin-right:6px;"></i>` : '';
+            let iconHtml = '';
+            if (groupMode === 'Type') {
+                let iconClass = typeIcons[groupName] || 'ms-dfc';
+                iconHtml = `<i class="ms ${iconClass} header-type-icon" style="margin-right:6px;"></i>`;
+            } else if (groupMode === 'Color' || groupMode === 'Color Identity') {
+                let iconClass = colorIcons[groupName] || 'ms-dfc';
+                iconHtml = `<i class="ms ${iconClass} header-type-icon" style="margin-right:6px; box-shadow: -1px 1px 0 #000; border-radius: 50%;"></i>`;
+            }
             
             const col = document.createElement('div');
             col.className = 'column';
-            col.innerHTML = `<h2><span>${iconHtml}${groupName}</span> <span>${totalCards} CARDS</span></h2>`;
+            col.innerHTML = `<h2><span>${iconHtml}${groupName.toUpperCase()} (${totalCards})</span></h2>`;
             
             groupCards.forEach(card => {
                 const item = document.createElement('div');
