@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Store Card Quotation Builder</title>
     <link href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme">
@@ -13,6 +14,7 @@
         <button id="theme-toggle" class="theme-btn">☀️ Light Mode</button>
     </div>
 
+    <!-- LIST EDITOR (Page 1) -->
     <div class="input-container" id="input-section">
         <p class="subtitle">Search for individual cards or paste a bulk list below to generate a professional quotation.</p>
 
@@ -23,9 +25,13 @@
                     <input type="text" id="card-search-input" placeholder="Type to search (e.g. Sol Ring)..." class="name-input" autocomplete="off" style="margin-bottom:0;">
                     <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
                 </div>
-                <div class="qty-wrapper">
-                    <input type="number" id="card-qty-input" value="1" min="1" max="99" class="qty-input">
+                
+                <div class="qty-controls">
+                    <button id="search-qty-minus" class="qty-btn">-</button>
+                    <span id="search-qty-display" class="qty-display">1</span>
+                    <button id="search-qty-plus" class="qty-btn">+</button>
                 </div>
+
                 <button id="add-single-card-btn" class="secondary-btn">Add</button>
             </div>
         </div>
@@ -35,6 +41,7 @@
         <div id="loading" class="hidden">Connecting to database and fetching market prices... Please wait.</div>
     </div>
 
+    <!-- QUOTATION VIEW (Page 2) -->
     <div class="deck-container hidden" id="deck-section">
         <div class="controls-top">
             <button id="back-btn" class="back-button">← BACK TO LIST EDITOR</button>
@@ -42,20 +49,25 @@
 
         <div class="deck-breakdown-box">
             
+            <!-- 1. Header & Download -->
             <div class="deck-header-bar">
                 <h2 id="display-deck-name">QUOTATION</h2>
-                <div class="action-buttons">
-                    <div class="currency-converter-box">
-                        <label for="exchange-rate-input">Exchange Rate (MXN):</label>
-                        <input type="number" id="exchange-rate-input" value="17" step="0.1" min="1" class="exchange-input">
-                    </div>
-                    <button class="icon-btn" id="download-btn" title="Download Text Quote">
-                        ⬇️ Download Quote
-                    </button>
+                <button class="icon-btn download-main-btn" id="download-btn" title="Download Text Quote">
+                    ⬇️ Download Quote
+                </button>
+            </div>
+
+            <!-- 2. Exchange Rate -->
+            <div class="exchange-bar">
+                <label>Exchange Rate (MXN):</label>
+                <div class="qty-controls">
+                    <button id="rate-minus" class="qty-btn">-</button>
+                    <span id="rate-display" class="qty-display">17</span>
+                    <button id="rate-plus" class="qty-btn">+</button>
                 </div>
             </div>
 
-            <!-- Page 2 Quick Add Search -->
+            <!-- 3. Add Another Card -->
             <div class="quick-add-bar">
                 <h4>Add Another Card:</h4>
                 <div class="search-row">
@@ -67,38 +79,69 @@
                 </div>
             </div>
 
+            <!-- Missing Cards Section -->
+            <div id="not-found-section" class="hidden" style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--accent-danger); margin: 0;">
+                <h4 style="color: var(--accent-danger); margin-top:0; margin-bottom: 8px;">Cards Not Found (Check Spelling)</h4>
+                <ul id="not-found-list" style="margin:0; font-size: 13px; color: var(--light-text);"></ul>
+            </div>
+
+            <!-- 4. Accounting Table -->
+            <div class="table-responsive">
+                <table class="accounting-table" id="accounting-table">
+                    <thead>
+                        <tr>
+                            <th>Qty</th>
+                            <th>Card Name</th>
+                            <th>Set</th>
+                            <th>#</th>
+                            <th>USD</th>
+                            <th>MXN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows injected here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 5. Totals -->
             <div class="pricing-summary-bar">
                 <div>Total USD: <span id="grand-total-usd" class="price-tag">$0.00</span></div>
                 <div>Total MXN: <span id="grand-total-mxn" class="price-tag">$0.00</span></div>
             </div>
 
-            <!-- Simple Text Breakdown -->
-            <div class="breakdown-header" style="flex-direction: column; gap: 8px;">
-                <div style="display:flex; justify-content: space-between; width: 100%;">
-                    <div class="card-count-display">
-                        <span class="label">TOTAL CARDS</span>
-                        <span class="value" id="total-card-count">0</span>
-                    </div>
-                    <div class="custom-dropdown">
-                        <select id="sort-select">
-                            <option value="type">Sort by Type</option>
-                            <option value="color">Sort by Color</option>
-                            <option value="cost">Sort by Mana Cost</option>
-                            <option value="rarity">Sort by Rarity</option>
-                        </select>
-                    </div>
+            <!-- 6. Charts (Deck Breakdown) -->
+            <div class="dashboard hidden" id="dashboard-section">
+                <div class="chart-box">
+                    <h3>MANA COST</h3>
+                    <div class="chart-container"><canvas id="manaCurveChart"></canvas></div>
                 </div>
-                <div id="type-summary-text" style="font-size: 13px; color: var(--text-muted);">
-                    <!-- e.g. Artifacts: 2 | Creatures: 5 -->
+                <div class="chart-box">
+                    <h3>MANA COLORS</h3>
+                    <div class="chart-container"><canvas id="colorPieChart"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <h3>CARD TYPES</h3>
+                    <div class="chart-container"><canvas id="typePieChart"></canvas></div>
                 </div>
             </div>
 
-            <!-- Missing Cards Section -->
-            <div id="not-found-section" class="hidden" style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--accent-danger); margin: 15px;">
-                <h4 style="color: var(--accent-danger); margin-top:0; margin-bottom: 8px;">Cards Not Found (Check Spelling)</h4>
-                <ul id="not-found-list" style="margin:0; font-size: 13px; color: var(--light-text);"></ul>
+            <!-- Sort Bar for Detailed List -->
+            <div class="breakdown-header">
+                <div class="card-count-display">
+                    <span class="label">DETAILED LIST</span>
+                </div>
+                <div class="custom-dropdown">
+                    <select id="sort-select">
+                        <option value="type">Sort by Type</option>
+                        <option value="color">Sort by Color</option>
+                        <option value="cost">Sort by Mana Cost</option>
+                        <option value="rarity">Sort by Rarity</option>
+                    </select>
+                </div>
             </div>
 
+            <!-- 7. Detailed Editor List -->
             <div class="decklist-grid" id="decklist-grid">
                 <!-- Cards inject here -->
             </div>
@@ -106,7 +149,7 @@
         </div>
     </div>
 
-    <!-- Full Screen Image Modal for Tap to View -->
+    <!-- Full Screen Image Modal -->
     <div id="image-modal" class="hidden">
         <div class="modal-backdrop"></div>
         <img id="modal-img" src="" alt="Card Preview">
