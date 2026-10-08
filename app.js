@@ -19,8 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quotation View Elements
     const backBtn = document.getElementById('back-btn');
     const loadingText = document.getElementById('loading');
-    const downloadBtn = document.getElementById('download-btn');
+    const downloadTxtBtn = document.getElementById('download-txt-btn');
+    const downloadHtmlBtn = document.getElementById('download-html-btn');
     const themeToggleBtn = document.getElementById('theme-toggle');
+    const toggleChartsBtn = document.getElementById('toggle-charts-btn');
     
     // Exchange Rate Controls
     const rateMinus = document.getElementById('rate-minus');
@@ -36,10 +38,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Display elements
     const grandTotalUsdEl = document.getElementById('grand-total-usd');
     const grandTotalMxnEl = document.getElementById('grand-total-mxn');
+    const totalCardCountEl = document.getElementById('total-card-count');
+    
+    const tableTotalUsdEl = document.getElementById('table-total-usd');
+    const tableTotalMxnEl = document.getElementById('table-total-mxn');
+
     const notFoundSection = document.getElementById('not-found-section');
     const notFoundList = document.getElementById('not-found-list');
     const accountingTableBody = document.querySelector('#accounting-table tbody');
     const dashboardSection = document.getElementById('dashboard-section');
+
+    const visualGalleryGrid = document.getElementById('visual-gallery-grid');
+    const tokensSection = document.getElementById('tokens-section');
+    const tokensDisplay = document.getElementById('tokens-display');
 
     // Modal
     const imageModal = document.getElementById('image-modal');
@@ -57,6 +68,16 @@ document.addEventListener('DOMContentLoaded', () => {
             themeToggleBtn.innerText = '🌙 Dark Mode';
         } else {
             themeToggleBtn.innerText = '☀️ Light Mode';
+        }
+    });
+
+    // Chart Toggle
+    toggleChartsBtn.addEventListener('click', () => {
+        dashboardSection.classList.toggle('hidden');
+        if(dashboardSection.classList.contains('hidden')){
+            toggleChartsBtn.innerText = '📊 Show Breakdown Charts';
+        } else {
+            toggleChartsBtn.innerText = '📊 Hide Breakdown Charts';
         }
     });
 
@@ -214,10 +235,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) sortSelect.addEventListener('change', () => updateAppUI());
 
-    if (downloadBtn) {
-        downloadBtn.addEventListener('click', () => {
+    // TXT DOWNLOAD
+    if (downloadTxtBtn) {
+        downloadTxtBtn.addEventListener('click', () => {
             let rate = currentExchangeRate;
-            let txt = `CARD QUOTATION\nExchange Rate: 1 USD = $${rate.toFixed(2)} MXN\n=====================================================================\n\n`;
+            let txt = `=====================================================================\n`;
+            txt += `SCION OF THE SOULS - OFFICIAL QUOTATION\n`;
+            txt += `WhatsApp: 55 3455 5002\n`;
+            txt += `Address: Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX\n`;
+            txt += `=====================================================================\n`;
+            txt += `Exchange Rate: 1 USD = $${rate.toFixed(2)} MXN\n\n`;
             
             let grandUsd = 0;
             const formatLine = (qty, name, versionStr, priceUsd) => {
@@ -232,7 +259,12 @@ document.addEventListener('DOMContentLoaded', () => {
             deckData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
-                txt += formatLine(card.qty, card.name, card.selectedVersionName || 'Non-foil', p) + '\n';
+                
+                let finish = 'Normal';
+                if(card.selectedVersionName.includes('Foil')) finish = 'Foil';
+                if(card.selectedVersionName.includes('Etched')) finish = 'Etched';
+
+                txt += formatLine(card.qty, card.name, `${card.selectedVersionName}`, p) + '\n';
             });
 
             let grandMxn = grandUsd * rate;
@@ -242,7 +274,133 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Card-Quote.txt';
+            a.download = 'Scion-Quote.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // HTML DOWNLOAD
+    if (downloadHtmlBtn) {
+        downloadHtmlBtn.addEventListener('click', () => {
+            let rate = currentExchangeRate;
+            let grandUsd = 0;
+            
+            let tableRows = '';
+            let imageGrid = '';
+
+            deckData.forEach(card => {
+                let p = card.selectedPrice || 1.00;
+                grandUsd += p * card.qty;
+                
+                let verStr = card.selectedVersionName || '';
+                let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
+                let exp = setMatch ? setMatch[1] : 'N/A';
+                let num = setMatch ? setMatch[2] : 'N/A';
+                
+                let finish = 'Normal';
+                if(verStr.includes('Foil')) finish = 'Foil';
+                if(verStr.includes('Etched')) finish = 'Etched';
+
+                tableRows += `
+                    <tr>
+                        <td style="text-align:center; font-weight:bold;">${card.qty}</td>
+                        <td>${card.name}</td>
+                        <td>${exp}</td>
+                        <td>${num}</td>
+                        <td>${finish}</td>
+                        <td style="text-align:right;">$${(p * card.qty).toFixed(2)}</td>
+                        <td style="text-align:right;">$${(p * card.qty * rate).toFixed(2)}</td>
+                    </tr>
+                `;
+
+                let imgUri = card.image_uris ? card.image_uris.normal : '';
+                if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
+                
+                if(imgUri) {
+                    imageGrid += `
+                        <div style="position:relative; width: 180px; margin-bottom: 20px;">
+                            <img src="${imgUri}" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white;">${card.qty}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            let grandMxn = grandUsd * rate;
+
+            let htmlContent = `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Scion of the Souls - Quotation</title>
+                <style>
+                    body { font-family: Arial, sans-serif; background: #f8fafc; color: #0f172a; margin: 0; padding: 20px; }
+                    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                    .header { text-align: center; border-bottom: 3px solid #0284c7; padding-bottom: 20px; margin-bottom: 30px; }
+                    .header h1 { margin: 0; color: #0f172a; text-transform: uppercase; font-size: 28px; }
+                    .header p { margin: 5px 0; color: #475569; font-size: 14px; }
+                    .contact { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-size: 14px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
+                    th { background: #0f172a; color: white; padding: 12px; text-align: left; }
+                    th:last-child, th:nth-last-child(2) { text-align: right; }
+                    td { padding: 12px; border-bottom: 1px solid #cbd5e1; }
+                    tfoot td { background: #f1f5f9; font-weight: bold; font-size: 16px; }
+                    .gallery { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 40px; border-top: 2px dashed #cbd5e1; padding-top: 30px;}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>SCION OF THE SOULS</h1>
+                        <p>Card Quotation & Order Summary</p>
+                    </div>
+                    
+                    <div class="contact">
+                        <strong>WhatsApp:</strong> 55 3455 5002<br>
+                        <strong>Address:</strong> Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX<br>
+                        <strong>Exchange Rate:</strong> 1 USD = $${rate.toFixed(2)} MXN
+                    </div>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="text-align:center;">Qty</th>
+                                <th>Card Name</th>
+                                <th>Set</th>
+                                <th>#</th>
+                                <th>Finish</th>
+                                <th style="text-align:right;">USD</th>
+                                <th style="text-align:right;">MXN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5" style="text-align:right;">GRAND TOTAL:</td>
+                                <td style="text-align:right; color:#0284c7;">$${grandUsd.toFixed(2)}</td>
+                                <td style="text-align:right; color:#0284c7;">$${grandMxn.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div class="gallery">
+                        ${imageGrid}
+                    </div>
+                </div>
+            </body>
+            </html>`;
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'Scion-Quote.html';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -340,11 +498,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateAppUI() {
+        let totalCount = deckData.reduce((sum, c) => sum + c.qty, 0);
+        totalCardCountEl.innerText = `${totalCount}`;
+
         updateGrandTotals();
         renderMissingCards();
         renderAccountingTable();
         renderDashboard();
         renderDecklist(deckData, document.getElementById('sort-select').value);
+        renderVisualGallery();
+        renderTokens();
     }
 
     function renderMissingCards() {
@@ -367,17 +530,21 @@ document.addEventListener('DOMContentLoaded', () => {
             let p = card.selectedPrice || 1.00;
             let tr = document.createElement('tr');
             
-            // Extract Set and Num from format: "LCI (#12) - Non-foil"
             let verStr = card.selectedVersionName || '';
             let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
             let exp = setMatch ? setMatch[1] : 'N/A';
             let num = setMatch ? setMatch[2] : 'N/A';
+
+            let finish = 'Normal';
+            if(verStr.includes('Foil')) finish = 'Foil';
+            if(verStr.includes('Etched')) finish = 'Etched';
 
             tr.innerHTML = `
                 <td>${card.qty}</td>
                 <td>${card.name}</td>
                 <td>${exp}</td>
                 <td>${num}</td>
+                <td>${finish}</td>
                 <td>$${(p * card.qty).toFixed(2)}</td>
                 <td>$${(p * card.qty * currentExchangeRate).toFixed(2)}</td>
             `;
@@ -390,16 +557,14 @@ document.addEventListener('DOMContentLoaded', () => {
         deckData.forEach(card => totalUsd += (card.selectedPrice || 1.00) * card.qty);
         let totalMxn = totalUsd * currentExchangeRate;
 
-        grandTotalUsdEl.innerText = `$${totalUsd.toFixed(2)} USD`;
-        grandTotalMxnEl.innerText = `$${totalMxn.toFixed(2)} MXN`;
+        grandTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
+        grandTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
+        tableTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
+        tableTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
     }
 
     function renderDashboard() {
-        if(deckData.length === 0) {
-            dashboardSection.classList.add('hidden');
-            return;
-        }
-        dashboardSection.classList.remove('hidden');
+        if(deckData.length === 0) return;
         
         charts.forEach(c => c.destroy());
         charts = [];
@@ -592,5 +757,72 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             grid.appendChild(col);
         });
+    }
+
+    function renderVisualGallery() {
+        visualGalleryGrid.innerHTML = '';
+        deckData.forEach(card => {
+            let imgUri = card.image_uris ? card.image_uris.normal : '';
+            if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
+            
+            if(imgUri) {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'gallery-card';
+                cardDiv.innerHTML = `
+                    <div class="gallery-qty">${card.qty}</div>
+                    <img src="${imgUri}" alt="${card.name}">
+                `;
+                cardDiv.addEventListener('click', () => {
+                    modalImg.src = imgUri;
+                    imageModal.classList.remove('hidden');
+                });
+                visualGalleryGrid.appendChild(cardDiv);
+            }
+        });
+    }
+
+    async function renderTokens() {
+        tokensDisplay.innerHTML = '';
+        let tokenIds = new Set();
+        let tokens = [];
+
+        deckData.forEach(card => {
+            if (card.all_parts) {
+                card.all_parts.forEach(part => {
+                    if ((part.component === 'token' || part.component === 'emblem') && !tokenIds.has(part.id)) {
+                        tokenIds.add(part.id);
+                        tokens.push(part);
+                    }
+                });
+            }
+        });
+
+        if (tokens.length === 0) {
+            tokensSection.classList.add('hidden');
+            return;
+        }
+        
+        tokensSection.classList.remove('hidden');
+
+        for (const tokenRef of tokens) {
+            try {
+                const res = await fetch(tokenRef.uri);
+                const tokenData = await res.json();
+                
+                let imgUri = tokenData.image_uris ? tokenData.image_uris.normal : '';
+                if (!imgUri && tokenData.card_faces && tokenData.card_faces[0].image_uris) imgUri = tokenData.card_faces[0].image_uris.normal;
+
+                if(imgUri) {
+                    const tCard = document.createElement('div');
+                    tCard.className = 'gallery-card';
+                    tCard.innerHTML = `<img src="${imgUri}" alt="${tokenData.name}">`;
+                    tCard.addEventListener('click', () => {
+                        modalImg.src = imgUri;
+                        imageModal.classList.remove('hidden');
+                    });
+                    tokensDisplay.appendChild(tCard);
+                }
+            } catch (e) {}
+        }
     }
 });

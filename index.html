@@ -2,15 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Store Card Quotation Builder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scion of the Souls - Quotation Builder</title>
     <link href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme">
     <div class="header">
-        <h1>CARD QUOTATION BUILDER</h1>
+        <div class="brand">
+            <img src="image_a62c01.png" alt="Store Logo" id="store-logo">
+            <div class="brand-text">
+                <h1>SCION OF THE SOULS</h1>
+                <p>Card Quotation & Order Builder</p>
+            </div>
+        </div>
         <button id="theme-toggle" class="theme-btn">☀️ Light Mode</button>
     </div>
 
@@ -49,12 +55,18 @@
 
         <div class="deck-breakdown-box">
             
-            <!-- 1. Header & Download -->
+            <!-- 1. Header & Download Buttons -->
             <div class="deck-header-bar">
                 <h2 id="display-deck-name">QUOTATION</h2>
-                <button class="icon-btn download-main-btn" id="download-btn" title="Download Text Quote">
-                    ⬇️ Download Quote
-                </button>
+                <div class="download-group">
+                    <span style="font-size: 12px; color: var(--text-muted); font-weight: bold;">EXPORT QUOTE:</span>
+                    <button class="icon-btn download-main-btn" id="download-txt-btn" title="Download Text File">
+                        📄 TXT
+                    </button>
+                    <button class="icon-btn download-main-btn html-btn" id="download-html-btn" title="Download Web Page">
+                        🌐 HTML
+                    </button>
+                </div>
             </div>
 
             <!-- 2. Exchange Rate -->
@@ -94,6 +106,7 @@
                             <th>Card Name</th>
                             <th>Set</th>
                             <th>#</th>
+                            <th>Finish</th>
                             <th>USD</th>
                             <th>MXN</th>
                         </tr>
@@ -101,16 +114,36 @@
                     <tbody>
                         <!-- Rows injected here -->
                     </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="5" style="text-align: right; font-weight: bold;">TOTALS:</td>
+                            <td id="table-total-usd" style="font-weight: bold; color: var(--accent-primary);">$0.00</td>
+                            <td id="table-total-mxn" style="font-weight: bold; color: var(--accent-primary);">$0.00</td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
 
-            <!-- 5. Totals -->
+            <!-- Big Totals Display -->
             <div class="pricing-summary-bar">
-                <div>Total USD: <span id="grand-total-usd" class="price-tag">$0.00</span></div>
-                <div>Total MXN: <span id="grand-total-mxn" class="price-tag">$0.00</span></div>
+                <div class="big-total">
+                    <span class="tot-label">TOTAL USD</span>
+                    <span class="tot-val" id="grand-total-usd">$0.00</span>
+                </div>
+                <div class="big-total">
+                    <span class="tot-label">TOTAL MXN</span>
+                    <span class="tot-val" id="grand-total-mxn">$0.00</span>
+                </div>
+                <div class="big-total">
+                    <span class="tot-label">CARDS</span>
+                    <span class="tot-val" id="total-card-count" style="color: var(--text-main);">0</span>
+                </div>
             </div>
 
-            <!-- 6. Charts (Deck Breakdown) -->
+            <!-- 5. Charts (Hidden by default, toggleable) -->
+            <div style="text-align: center; padding: 15px; border-bottom: 1px solid var(--border-light);">
+                <button id="toggle-charts-btn" class="secondary-btn">📊 Show Breakdown Charts</button>
+            </div>
             <div class="dashboard hidden" id="dashboard-section">
                 <div class="chart-box">
                     <h3>MANA COST</h3>
@@ -129,7 +162,7 @@
             <!-- Sort Bar for Detailed List -->
             <div class="breakdown-header">
                 <div class="card-count-display">
-                    <span class="label">DETAILED LIST</span>
+                    <span class="label" style="font-size: 16px;">EDIT EDITIONS & FINISHES</span>
                 </div>
                 <div class="custom-dropdown">
                     <select id="sort-select">
@@ -141,11 +174,27 @@
                 </div>
             </div>
 
-            <!-- 7. Detailed Editor List -->
+            <!-- 6. Detailed Editor List -->
             <div class="decklist-grid" id="decklist-grid">
                 <!-- Cards inject here -->
             </div>
             
+            <!-- 7. Visual Image Gallery -->
+            <div class="visual-gallery-section" id="visual-gallery-section">
+                <h2 class="gallery-title">Visual Card Check</h2>
+                <div class="visual-gallery-grid" id="visual-gallery-grid">
+                    <!-- Images inject here -->
+                </div>
+            </div>
+
+            <!-- 8. Tokens -->
+            <div class="tokens-section hidden" id="tokens-section">
+                <h2 class="gallery-title">Required Tokens</h2>
+                <div class="visual-gallery-grid" id="tokens-display">
+                    <!-- Tokens inject here -->
+                </div>
+            </div>
+
         </div>
     </div>
 
