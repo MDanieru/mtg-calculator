@@ -21,11 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingText = document.getElementById('loading');
     const loadingProgress = document.getElementById('loading-progress');
     const progressBarFill = document.getElementById('progress-bar-fill');
+    
     const downloadTxtBtn = document.getElementById('download-txt-btn');
     const downloadPdfBtn = document.getElementById('download-pdf-btn');
     const downloadHtmlBtn = document.getElementById('download-html-btn');
+    
     const themeToggleBtn = document.getElementById('theme-toggle');
     const toggleChartsBtn = document.getElementById('toggle-charts-btn');
+    const layoutToggleBtn = document.getElementById('layout-toggle-btn');
     
     // Exchange Rate Controls
     const rateMinus = document.getElementById('rate-minus');
@@ -41,8 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Display elements
     const grandTotalUsdEl = document.getElementById('grand-total-usd');
     const grandTotalMxnEl = document.getElementById('grand-total-mxn');
-    const totalCardCountEl = document.getElementById('total-card-count');
     
+    const tableTotalQtyEl = document.getElementById('table-total-qty');
     const tableTotalUsdEl = document.getElementById('table-total-usd');
     const tableTotalMxnEl = document.getElementById('table-total-mxn');
 
@@ -50,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const notFoundList = document.getElementById('not-found-list');
     const accountingTableBody = document.querySelector('#accounting-table tbody');
     const dashboardSection = document.getElementById('dashboard-section');
+    const decklistGrid = document.getElementById('decklist-grid');
 
     const visualGalleryGrid = document.getElementById('visual-gallery-grid');
     const tokensSection = document.getElementById('tokens-section');
@@ -63,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let notFoundCards = [];
     let searchTimeout = null;
     let charts = [];
+    let isMoxfieldView = true; // Default
 
     // Theme Toggle
     themeToggleBtn.addEventListener('click', () => {
@@ -71,6 +76,17 @@ document.addEventListener('DOMContentLoaded', () => {
             themeToggleBtn.innerText = '🌙 Dark Mode';
         } else {
             themeToggleBtn.innerText = '☀️ Light Mode';
+        }
+    });
+
+    // Layout Toggle
+    layoutToggleBtn.addEventListener('click', () => {
+        isMoxfieldView = !isMoxfieldView;
+        layoutToggleBtn.innerText = isMoxfieldView ? '🔲 Classic View' : '🔲 Moxfield View';
+        if(isMoxfieldView) {
+            decklistGrid.classList.add('moxfield-layout');
+        } else {
+            decklistGrid.classList.remove('moxfield-layout');
         }
     });
 
@@ -87,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal Close
     imageModal.addEventListener('click', () => { imageModal.classList.add('hidden'); });
 
-    // QTY Controls (List Editor Search)
+    // QTY Controls
     searchQtyMinus.addEventListener('click', () => {
         if(searchQty > 1) { searchQty--; searchQtyDisplay.innerText = searchQty; }
     });
@@ -95,7 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(searchQty < 99) { searchQty++; searchQtyDisplay.innerText = searchQty; }
     });
 
-    // Exchange Rate Controls
     rateMinus.addEventListener('click', () => {
         if(currentExchangeRate > 1) { 
             currentExchangeRate--; 
@@ -202,8 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             loadingText.innerText = "Connecting to database and fetching market prices... Please wait.";
             loadingText.classList.remove('hidden');
-        if(loadingProgress) loadingProgress.innerText = 'Calculating...';
-        if(progressBarFill) progressBarFill.style.width = '0%';
+            if(loadingProgress) loadingProgress.innerText = 'Calculating...';
+            if(progressBarFill) progressBarFill.style.width = '0%';
+            
             generateBtn.disabled = true;
 
             try {
@@ -272,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             txt += `================================================================================\n\n`;
 
             let grandUsd = 0;
+            let totalQty = 0;
             
             // Group cards by type
             const groups = {};
@@ -294,12 +311,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             orderedKeys.forEach(groupName => {
                 const groupCards = groups[groupName];
-                const totalCards = groupCards.reduce((sum, c) => sum + c.qty, 0);
+                const typeCardsTotal = groupCards.reduce((sum, c) => sum + c.qty, 0);
                 
-                txt += `--- ${groupName.toUpperCase()} (${totalCards}) ---\n`;
+                txt += `--- ${groupName.toUpperCase()} (${typeCardsTotal}) ---\n`;
                 
                 groupCards.forEach(card => {
                     let p = card.selectedPrice || 1.00;
+                    totalQty += card.qty;
                     grandUsd += p * card.qty;
                     
                     let verStr = card.selectedVersionName || '';
@@ -327,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let grandMxn = grandUsd * rate;
             txt += `================================================================================\n`;
-            txt += `GRAND TOTAL:`.padEnd(65, ' ') + `$${grandUsd.toFixed(2)} USD ($${grandMxn.toFixed(2)} MXN)\n`;
+            txt += `GRAND TOTAL (${totalQty} CARDS):`.padEnd(65, ' ') + `$${grandUsd.toFixed(2)} USD ($${grandMxn.toFixed(2)} MXN)\n`;
             txt += `================================================================================\n`;
 
             let reqTokens = getRequiredTokens();
@@ -356,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let rate = currentExchangeRate;
             let grandUsd = 0;
+            let totalQty = 0;
             
             let tableRows = '';
             let imageGrid = '';
@@ -363,11 +382,11 @@ document.addEventListener('DOMContentLoaded', () => {
             deckData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
+                totalQty += card.qty;
                 
                 let verStr = card.selectedVersionName || '';
                 let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
                 let exp = setMatch ? setMatch[1] : 'N/A';
-                let num = setMatch ? setMatch[2] : 'N/A';
                 
                 let finish = 'Normal';
                 if(verStr.includes('Foil')) finish = 'Foil';
@@ -378,8 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td style="text-align:center; font-weight:bold; padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.qty}</td>
                         <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.name}</td>
                         <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${exp}</td>
-                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${num}</td>
                         <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${finish}</td>
+                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${p.toFixed(2)}</td>
                         <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty).toFixed(2)}</td>
                         <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty * rate).toFixed(2)}</td>
                     </tr>
@@ -391,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(imgUri) {
                     imageGrid += `
                         <div style="position:relative; width: 140px; margin: 10px;">
-                            <img src="${imgUri}" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            <img src="${imgUri}" crossorigin="anonymous" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
                             <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:25px; height:25px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white; font-size:12px;">${card.qty}</div>
                         </div>
                     `;
@@ -438,10 +457,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th style="padding: 8px; text-align: center;">Qty</th>
                                 <th style="padding: 8px; text-align: left;">Card Name</th>
                                 <th style="padding: 8px; text-align: left;">Set</th>
-                                <th style="padding: 8px; text-align: left;">#</th>
                                 <th style="padding: 8px; text-align: left;">Finish</th>
-                                <th style="padding: 8px; text-align: right;">USD</th>
-                                <th style="padding: 8px; text-align: right;">MXN</th>
+                                <th style="padding: 8px; text-align: right;">Unit USD</th>
+                                <th style="padding: 8px; text-align: right;">Total USD</th>
+                                <th style="padding: 8px; text-align: right;">Total MXN</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -449,7 +468,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tbody>
                         <tfoot>
                             <tr style="background: #f1f5f9; font-weight: bold; font-size: 14px;">
-                                <td colspan="5" style="text-align:right; padding: 10px;">GRAND TOTAL:</td>
+                                <td style="text-align:center; padding: 10px;">${totalQty}</td>
+                                <td colspan="4" style="text-align:right; padding: 10px;">GRAND TOTAL:</td>
                                 <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandUsd.toFixed(2)}</td>
                                 <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandMxn.toFixed(2)}</td>
                             </tr>
@@ -466,30 +486,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const element = document.createElement('div');
             element.innerHTML = htmlContent;
+            
+            // Attach to DOM temporarily so html2canvas can read it properly
+            element.style.position = 'absolute';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            document.body.appendChild(element);
 
             const opt = {
               margin:       0.3,
               filename:     'Scion-Quote.pdf',
               image:        { type: 'jpeg', quality: 0.98 },
-              html2canvas:  { scale: 2, useCORS: true },
+              html2canvas:  { scale: 2, useCORS: true, allowTaint: true },
               jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
             };
 
             setTimeout(() => {
                 html2pdf().set(opt).from(element).save().then(() => {
+                    document.body.removeChild(element);
+                    downloadPdfBtn.innerHTML = '📄 PDF';
+                    downloadPdfBtn.disabled = false;
+                }).catch(err => {
+                    console.error("PDF Error:", err);
+                    document.body.removeChild(element);
                     downloadPdfBtn.innerHTML = '📄 PDF';
                     downloadPdfBtn.disabled = false;
                 });
-            }, 100);
+            }, 500);
         });
     }
 
-    
     // HTML DOWNLOAD
     if (downloadHtmlBtn) {
         downloadHtmlBtn.addEventListener('click', () => {
             let rate = currentExchangeRate;
             let grandUsd = 0;
+            let totalQty = 0;
             
             let tableRows = '';
             let imageGrid = '';
@@ -497,11 +529,11 @@ document.addEventListener('DOMContentLoaded', () => {
             deckData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
+                totalQty += card.qty;
                 
                 let verStr = card.selectedVersionName || '';
                 let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
                 let exp = setMatch ? setMatch[1] : 'N/A';
-                let num = setMatch ? setMatch[2] : 'N/A';
                 
                 let finish = 'Normal';
                 if(verStr.includes('Foil')) finish = 'Foil';
@@ -512,8 +544,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td style="text-align:center; font-weight:bold;">${card.qty}</td>
                         <td>${card.name}</td>
                         <td>${exp}</td>
-                        <td>${num}</td>
                         <td>${finish}</td>
+                        <td style="text-align:right;">$${p.toFixed(2)}</td>
                         <td style="text-align:right;">$${(p * card.qty).toFixed(2)}</td>
                         <td style="text-align:right;">$${(p * card.qty * rate).toFixed(2)}</td>
                     </tr>
@@ -525,7 +557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(imgUri) {
                     imageGrid += `
                         <div style="position:relative; width: 180px; margin-bottom: 20px;">
-                            <img src="${imgUri}" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            <img src="${imgUri}" crossorigin="anonymous" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
                             <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:30px; height:30px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white;">${card.qty}</div>
                         </div>
                     `;
@@ -562,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     .contact { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-size: 14px; }
                     table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
                     th { background: #0f172a; color: white; padding: 12px; text-align: left; }
-                    th:last-child, th:nth-last-child(2) { text-align: right; }
+                    th:last-child, th:nth-last-child(2), th:nth-last-child(3) { text-align: right; }
                     td { padding: 12px; border-bottom: 1px solid #cbd5e1; }
                     tfoot td { background: #f1f5f9; font-weight: bold; font-size: 16px; }
                     .gallery { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; margin-top: 40px; border-top: 2px dashed #cbd5e1; padding-top: 30px;}
@@ -587,10 +619,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <th style="text-align:center;">Qty</th>
                                 <th>Card Name</th>
                                 <th>Set</th>
-                                <th>#</th>
                                 <th>Finish</th>
-                                <th style="text-align:right;">USD</th>
-                                <th style="text-align:right;">MXN</th>
+                                <th style="text-align:right;">Unit USD</th>
+                                <th style="text-align:right;">Total USD</th>
+                                <th style="text-align:right;">Total MXN</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -598,7 +630,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="5" style="text-align:right;">GRAND TOTAL:</td>
+                                <td style="text-align:center;">${totalQty}</td>
+                                <td colspan="4" style="text-align:right;">GRAND TOTAL:</td>
                                 <td style="text-align:right; color:#0284c7;">$${grandUsd.toFixed(2)}</td>
                                 <td style="text-align:right; color:#0284c7;">$${grandMxn.toFixed(2)}</td>
                             </tr>
@@ -625,7 +658,8 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(url);
         });
     }
-function parseDecklist(text) {
+
+    function parseDecklist(text) {
         const lines = text.split('\n');
         const map = new Map();
         const regex = /^(?:(\d+)\s*x?\s+)?(.+)$/i;
@@ -650,10 +684,11 @@ function parseDecklist(text) {
         return Array.from(map.values());
     }
 
-        async function fetchScryfallAndPricingData(parsedList) {
+    async function fetchScryfallAndPricingData(parsedList) {
         let validCards = [];
         let invalidCards = [];
         const chunkSize = 50; 
+        
         let totalCards = parsedList.length;
         let processedCards = 0;
         
@@ -677,7 +712,7 @@ function parseDecklist(text) {
                     // Polite delay to prevent Scryfall 429 Rate Limit Errors
                     await new Promise(resolve => setTimeout(resolve, 120));
 
-                    const searchRes = await fetch(`https://api.scryfall.com/cards/search?q=%21"${encodeURIComponent(cleanName)}"+unique%3Aprints`);
+                    const searchRes = await fetch(`https://api.scryfall.com/cards/search?q=%21\"${encodeURIComponent(cleanName)}\"+unique%3Aprints`);
                     const searchData = await searchRes.json();
                     
                     if(searchData.object === "error") throw new Error("Not found");
@@ -731,10 +766,25 @@ function parseDecklist(text) {
     }
 
     function updateAppUI() {
-        let totalCount = deckData.reduce((sum, c) => sum + c.qty, 0);
-        totalCardCountEl.innerText = `${totalCount}`;
+        let totalQty = 0;
+        let totalUsd = 0;
 
-        updateGrandTotals();
+        deckData.forEach(card => {
+            totalQty += card.qty;
+            totalUsd += (card.selectedPrice || 1.00) * card.qty;
+        });
+        
+        let totalMxn = totalUsd * currentExchangeRate;
+
+        // Big UI elements
+        grandTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
+        grandTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
+        
+        // Table Footers
+        tableTotalQtyEl.innerText = totalQty;
+        tableTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
+        tableTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
+
         renderMissingCards();
         renderAccountingTable();
         renderDashboard();
@@ -766,8 +816,7 @@ function parseDecklist(text) {
             let verStr = card.selectedVersionName || '';
             let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
             let exp = setMatch ? setMatch[1] : 'N/A';
-            let num = setMatch ? setMatch[2] : 'N/A';
-
+            
             let finish = 'Normal';
             if(verStr.includes('Foil')) finish = 'Foil';
             if(verStr.includes('Etched')) finish = 'Etched';
@@ -776,24 +825,13 @@ function parseDecklist(text) {
                 <td>${card.qty}</td>
                 <td>${card.name}</td>
                 <td>${exp}</td>
-                <td>${num}</td>
                 <td>${finish}</td>
-                <td>$${(p * card.qty).toFixed(2)}</td>
-                <td>$${(p * card.qty * currentExchangeRate).toFixed(2)}</td>
+                <td style="text-align:right;">$${p.toFixed(2)}</td>
+                <td style="text-align:right;">$${(p * card.qty).toFixed(2)}</td>
+                <td style="text-align:right;">$${(p * card.qty * currentExchangeRate).toFixed(2)}</td>
             `;
             accountingTableBody.appendChild(tr);
         });
-    }
-
-    function updateGrandTotals() {
-        let totalUsd = 0;
-        deckData.forEach(card => totalUsd += (card.selectedPrice || 1.00) * card.qty);
-        let totalMxn = totalUsd * currentExchangeRate;
-
-        grandTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
-        grandTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
-        tableTotalUsdEl.innerText = `$${totalUsd.toFixed(2)}`;
-        tableTotalMxnEl.innerText = `$${totalMxn.toFixed(2)}`;
     }
 
     function renderDashboard() {
@@ -865,19 +903,30 @@ function parseDecklist(text) {
         const grid = document.getElementById('decklist-grid');
         grid.innerHTML = '';
 
+        const typeIcons = {
+            'Creatures': 'ms-creature',
+            'Instants': 'ms-instant',
+            'Sorceries': 'ms-sorcery',
+            'Artifacts': 'ms-artifact',
+            'Enchantments': 'ms-enchantment',
+            'Planeswalkers': 'ms-planeswalker',
+            'Lands': 'ms-land',
+            'Other': 'ms-dfc'
+        };
+
         const groups = {};
         cards.forEach(card => {
             let key = 'Other';
             let tLine = (card.type_line || '').toLowerCase();
 
             if (sortMode === 'type') {
-                if (tLine.includes('creature')) key = 'Creature';
-                else if (tLine.includes('instant')) key = 'Instant';
-                else if (tLine.includes('sorcery')) key = 'Sorcery';
-                else if (tLine.includes('artifact')) key = 'Artifact';
-                else if (tLine.includes('enchantment')) key = 'Enchantment';
-                else if (tLine.includes('planeswalker')) key = 'Planeswalker';
-                else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Land';
+                if (tLine.includes('creature')) key = 'Creatures';
+                else if (tLine.includes('instant')) key = 'Instants';
+                else if (tLine.includes('sorcery')) key = 'Sorceries';
+                else if (tLine.includes('artifact')) key = 'Artifacts';
+                else if (tLine.includes('enchantment')) key = 'Enchantments';
+                else if (tLine.includes('planeswalker')) key = 'Planeswalkers';
+                else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
             } else if (sortMode === 'color') {
                 let cColors = card.color_identity || card.colors || [];
                 if (cColors.length === 0) key = 'Colorless';
@@ -887,7 +936,7 @@ function parseDecklist(text) {
                     key = cMap[cColors[0]];
                 }
             } else if (sortMode === 'cost') {
-                if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Land';
+                if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
                 else key = `${Math.floor(card.cmc || 0)}`;
             } else if (sortMode === 'rarity') {
                 const rMap = {'common': 'Common', 'uncommon': 'Uncommon', 'rare': 'Rare', 'mythic': 'Mythic Rare'};
@@ -899,18 +948,20 @@ function parseDecklist(text) {
         });
 
         let orderedKeys = Object.keys(groups).sort();
-        if (sortMode === 'type') orderedKeys = ['Creature', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Planeswalker', 'Land', 'Other'].filter(k => groups[k]);
+        if (sortMode === 'type') orderedKeys = ['Creatures', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Planeswalkers', 'Lands', 'Other'].filter(k => groups[k]);
         if (sortMode === 'color') orderedKeys = ['White', 'Blue', 'Black', 'Red', 'Green', 'Multicolor', 'Colorless', 'Other'].filter(k => groups[k]);
         if (sortMode === 'rarity') orderedKeys = ['Common', 'Uncommon', 'Rare', 'Mythic Rare', 'Other'].filter(k => groups[k]);
-        if (sortMode === 'cost') orderedKeys = Object.keys(groups).sort((a,b) => (a==='Land'?1:(b==='Land'?-1:parseInt(a)-parseInt(b))));
+        if (sortMode === 'cost') orderedKeys = Object.keys(groups).sort((a,b) => (a==='Lands'?1:(b==='Lands'?-1:parseInt(a)-parseInt(b))));
 
         orderedKeys.forEach(groupName => {
             const groupCards = groups[groupName];
             const totalCards = groupCards.reduce((sum, c) => sum + c.qty, 0);
             
+            let iconClass = typeIcons[groupName] || 'ms-dfc';
+            
             const col = document.createElement('div');
             col.className = 'column';
-            col.innerHTML = `<h2><span>${groupName}</span> <span>${totalCards} CARDS</span></h2>`;
+            col.innerHTML = `<h2><span><i class="ms ${iconClass} header-type-icon" style="margin-right:6px;"></i>${groupName}</span> <span>${totalCards} CARDS</span></h2>`;
             
             groupCards.forEach(card => {
                 const item = document.createElement('div');
@@ -926,8 +977,14 @@ function parseDecklist(text) {
                     versionOptions += `<option value="${idx}" ${sel}>${ver.versionDisplay} ($${ver.price.toFixed(2)})</option>`;
                 });
 
-                let currentLinePrice = (card.selectedPrice * card.qty);
-                let currentLineMxn = currentLinePrice * currentExchangeRate;
+                let unitPrice = card.selectedPrice || 1.00;
+                let subtotalUsd = unitPrice * card.qty;
+                let subtotalMxn = subtotalUsd * currentExchangeRate;
+                
+                // Get set code for icon
+                let setMatch = card.selectedVersionName.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
+                let expCode = setMatch ? setMatch[1].toLowerCase() : '';
+                let setIconHtml = expCode ? `<i class="ss ss-${expCode} ss-fw set-icon-span" style="font-size: 16px; margin-left: 5px; color: var(--text-muted);" title="${expCode.toUpperCase()}"></i>` : '';
                 
                 const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
 
@@ -941,14 +998,18 @@ function parseDecklist(text) {
                         </div>
                         <span class="card-name" title="Tap to view image">${card.name}</span>
                         <div class="card-cost">${costHtml}</div>
+                        ${setIconHtml}
                     </div>
                     <div class="card-pricing-info">
+                        <div class="unit-price-badge" style="font-size: 11px; color: var(--text-muted); text-align: right; line-height: 1.2;">
+                            Unit:<br>$${unitPrice.toFixed(2)}
+                        </div>
                         <select class="version-select" data-cardname="${card.name}">
                             ${versionOptions}
                         </select>
                         <div class="card-price-display">
-                            $${currentLinePrice.toFixed(2)} USD<br>
-                            <span style="font-size:10px; font-weight:normal; opacity:0.8;">($${currentLineMxn.toFixed(2)} MXN)</span>
+                            <span style="font-size:14px;">$${subtotalUsd.toFixed(2)}</span><br>
+                            <span style="font-size:10px; opacity:0.8;">($${subtotalMxn.toFixed(2)} MXN)</span>
                         </div>
                     </div>
                 `;
@@ -961,6 +1022,7 @@ function parseDecklist(text) {
                 item.querySelector('.minus-btn').addEventListener('click', () => {
                     if (card.qty > 1) { card.qty--; updateAppUI(); }
                 });
+
                 item.querySelector('.plus-btn').addEventListener('click', () => {
                     if (card.qty < 99) { card.qty++; updateAppUI(); }
                 });
