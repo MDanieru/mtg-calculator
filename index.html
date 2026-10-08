@@ -6,6 +6,7 @@
     <title>Scion of the Souls - Quotation Builder</title>
     <link href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-theme">
@@ -45,7 +46,13 @@
 
         <textarea id="decklist-input" placeholder="1 Sol Ring&#10;4 Lightning Bolt&#10;1 The One Ring"></textarea>
         <button id="generate-btn">GENERATE QUOTE</button>
-        <div id="loading" class="hidden">Connecting to database and fetching market prices... Please wait.</div>
+        <div id="loading" class="hidden" style="text-align: center; padding: 20px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-light); margin-top: 15px;">
+            <div id="loading-text" style="font-weight: bold; margin-bottom: 10px;">Connecting to database and fetching market prices...</div>
+            <div class="progress-bar-container">
+                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+            <div id="loading-progress" style="margin-top: 10px; font-size: 13px; font-weight: bold; color: var(--accent-primary);">0 / 0 Cards Processed</div>
+        </div>
     </div>
 
     <!-- QUOTATION VIEW (Page 2) -->
@@ -63,6 +70,9 @@
                     <span style="font-size: 12px; color: var(--text-muted); font-weight: bold;">EXPORT QUOTE:</span>
                     <button class="icon-btn download-main-btn" id="download-txt-btn" title="Download Text File">
                         📄 TXT
+                    </button>
+                    <button class="icon-btn download-main-btn html-btn" id="download-pdf-btn" title="Download PDF Document">
+                        📄 PDF
                     </button>
                     <button class="icon-btn download-main-btn html-btn" id="download-html-btn" title="Download Web Page">
                         🌐 HTML
@@ -191,6 +201,7 @@
             <!-- 8. Tokens -->
             <div class="tokens-section hidden" id="tokens-section">
                 <h2 class="gallery-title">Required Tokens</h2>
+                <p style="text-align: center; color: var(--accent-danger); font-size: 13px; font-weight: bold; margin-top: -10px; margin-bottom: 15px;">(Reference only. Tokens are NOT included in the quoted price.)</p>
                 <div class="visual-gallery-grid" id="tokens-display">
                     <!-- Tokens inject here -->
                 </div>

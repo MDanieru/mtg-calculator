@@ -537,10 +537,26 @@ button:hover { background-color: var(--accent-hover); }
     .dashboard { flex-direction: row; }
     .chart-box { flex: 1; }
     .decklist-grid { padding: 10px 25px 25px; }
-    .card-item { flex-direction: row; align-items: center; padding: 10px 15px; }
+    .card-item { flex-direction: row; align-items: center; padding: 10px 15px; gap: 20px; justify-content: flex-start; }
     .card-pricing-info { flex-direction: row; align-items: center; width: auto; }
     .version-select { width: auto; max-width: 300px; }
-    .card-price-display { text-align: right; min-width: 110px; }
+    .card-price-display { text-align: left; min-width: 110px; margin-left: 10px; }
     button { width: auto; }
     .visual-gallery-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+
+/* Progress Bar */
+.progress-bar-container {
+    width: 100%;
+    background-color: var(--border-light);
+    border-radius: 6px;
+    height: 12px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+.progress-bar-fill {
+    height: 100%;
+    background-color: var(--accent-primary);
+    width: 0%;
+    transition: width 0.2s ease;
 }

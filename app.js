@@ -19,7 +19,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Quotation View Elements
     const backBtn = document.getElementById('back-btn');
     const loadingText = document.getElementById('loading');
+    const loadingProgress = document.getElementById('loading-progress');
+    const progressBarFill = document.getElementById('progress-bar-fill');
     const downloadTxtBtn = document.getElementById('download-txt-btn');
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
     const downloadHtmlBtn = document.getElementById('download-html-btn');
     const themeToggleBtn = document.getElementById('theme-toggle');
     const toggleChartsBtn = document.getElementById('toggle-charts-btn');
@@ -181,6 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         loadingText.innerText = `Fetching ${cName}...`;
         loadingText.classList.remove('hidden');
+        if(loadingProgress) loadingProgress.innerText = 'Calculating...';
+        if(progressBarFill) progressBarFill.style.width = '0%';
         
         let result = await fetchScryfallAndPricingData([{qty: 1, name: cName}]);
         if(result.valid.length > 0) deckData.push(result.valid[0]);
@@ -197,6 +202,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             loadingText.innerText = "Connecting to database and fetching market prices... Please wait.";
             loadingText.classList.remove('hidden');
+        if(loadingProgress) loadingProgress.innerText = 'Calculating...';
+        if(progressBarFill) progressBarFill.style.width = '0%';
             generateBtn.disabled = true;
 
             try {
@@ -223,9 +230,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (backBtn) {
         backBtn.addEventListener('click', () => {
-            // SYNC UPDATED LIST BACK TO TEXTAREA
             let syncText = deckData.map(c => `${c.qty} ${c.name}`).join('\n');
-            decklistInput.value = syncText;
+            if (notFoundCards.length > 0) {
+                syncText += '\n\n' + notFoundCards.map(n => `1 ${n}`).join('\n');
+            }
+            decklistInput.value = syncText.trim();
             
             deckSection.classList.add('hidden');
             inputSection.classList.remove('hidden');
@@ -235,40 +244,97 @@ document.addEventListener('DOMContentLoaded', () => {
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) sortSelect.addEventListener('change', () => updateAppUI());
 
+    // Helper: Collect required tokens
+    function getRequiredTokens() {
+        let requiredTokens = new Set();
+        deckData.forEach(card => {
+            if (card.all_parts) {
+                card.all_parts.forEach(part => {
+                    if (part.component === 'token' || part.component === 'emblem') {
+                        requiredTokens.add(part.name);
+                    }
+                });
+            }
+        });
+        return Array.from(requiredTokens);
+    }
+
     // TXT DOWNLOAD
     if (downloadTxtBtn) {
         downloadTxtBtn.addEventListener('click', () => {
             let rate = currentExchangeRate;
-            let txt = `=====================================================================\n`;
-            txt += `SCION OF THE SOULS - OFFICIAL QUOTATION\n`;
+            let txt = `================================================================================\n`;
+            txt += `                    SCION OF THE SOULS - OFFICIAL QUOTATION                     \n`;
+            txt += `================================================================================\n`;
             txt += `WhatsApp: 55 3455 5002\n`;
-            txt += `Address: Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX\n`;
-            txt += `=====================================================================\n`;
-            txt += `Exchange Rate: 1 USD = $${rate.toFixed(2)} MXN\n\n`;
-            
+            txt += `Address:  Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX\n`;
+            txt += `Rate:     1 USD = $${rate.toFixed(2)} MXN\n`;
+            txt += `================================================================================\n\n`;
+
             let grandUsd = 0;
-            const formatLine = (qty, name, versionStr, priceUsd) => {
-                let lineUsd = priceUsd * qty;
-                let lineMxn = lineUsd * rate;
-                let leftPart = `${qty}x ${name}`;
-                let rightPart = `[${versionStr}]\t-\t$${lineUsd.toFixed(2)} USD ($${lineMxn.toFixed(2)} MXN)`;
-                let padding = Math.max(2, 48 - leftPart.length);
-                return leftPart + ' '.repeat(padding) + rightPart;
-            };
-
+            
+            // Group cards by type
+            const groups = {};
             deckData.forEach(card => {
-                let p = card.selectedPrice || 1.00;
-                grandUsd += p * card.qty;
-                
-                let finish = 'Normal';
-                if(card.selectedVersionName.includes('Foil')) finish = 'Foil';
-                if(card.selectedVersionName.includes('Etched')) finish = 'Etched';
+                let key = 'Other';
+                let tLine = (card.type_line || '').toLowerCase();
+                if (tLine.includes('creature')) key = 'Creatures';
+                else if (tLine.includes('instant')) key = 'Instants';
+                else if (tLine.includes('sorcery')) key = 'Sorceries';
+                else if (tLine.includes('artifact')) key = 'Artifacts';
+                else if (tLine.includes('enchantment')) key = 'Enchantments';
+                else if (tLine.includes('planeswalker')) key = 'Planeswalkers';
+                else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) key = 'Lands';
 
-                txt += formatLine(card.qty, card.name, `${card.selectedVersionName}`, p) + '\n';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(card);
+            });
+
+            let orderedKeys = ['Creatures', 'Planeswalkers', 'Instants', 'Sorceries', 'Artifacts', 'Enchantments', 'Lands', 'Other'].filter(k => groups[k]);
+
+            orderedKeys.forEach(groupName => {
+                const groupCards = groups[groupName];
+                const totalCards = groupCards.reduce((sum, c) => sum + c.qty, 0);
+                
+                txt += `--- ${groupName.toUpperCase()} (${totalCards}) ---\n`;
+                
+                groupCards.forEach(card => {
+                    let p = card.selectedPrice || 1.00;
+                    grandUsd += p * card.qty;
+                    
+                    let verStr = card.selectedVersionName || '';
+                    let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
+                    let exp = setMatch ? setMatch[1] : 'N/A';
+                    let num = setMatch ? setMatch[2] : 'N/A';
+                    let finish = verStr.includes('Foil') ? 'Foil' : (verStr.includes('Etched') ? 'Etched' : 'Normal');
+                    
+                    let lineUsd = p * card.qty;
+                    let lineMxn = lineUsd * rate;
+                    
+                    let leftPart = `${card.qty}x ${card.name}`;
+                    if(leftPart.length > 38) leftPart = leftPart.substring(0, 35) + '...';
+                    leftPart = leftPart.padEnd(40, ' ');
+                    
+                    let middlePart = `[${exp} #${num} - ${finish}]`;
+                    middlePart = middlePart.padEnd(25, ' ');
+                    
+                    let rightPart = `$${lineUsd.toFixed(2)} USD ($${lineMxn.toFixed(2)} MXN)`;
+                    
+                    txt += `${leftPart}${middlePart}${rightPart}\n`;
+                });
+                txt += `\n`;
             });
 
             let grandMxn = grandUsd * rate;
-            txt += `\n=====================================================================\nTOTAL: $${grandUsd.toFixed(2)} USD ($${grandMxn.toFixed(2)} MXN)\n`;
+            txt += `================================================================================\n`;
+            txt += `GRAND TOTAL:`.padEnd(65, ' ') + `$${grandUsd.toFixed(2)} USD ($${grandMxn.toFixed(2)} MXN)\n`;
+            txt += `================================================================================\n`;
+
+            let reqTokens = getRequiredTokens();
+            if (reqTokens.length > 0) {
+                txt += `\n*** REQUIRED TOKENS (Reference only - NOT included in quoted price) ***\n`;
+                reqTokens.forEach(t => txt += `- ${t}\n`);
+            }
 
             const blob = new Blob([txt], { type: 'text/plain' });
             const url = URL.createObjectURL(blob);
@@ -282,6 +348,143 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // PDF DOWNLOAD
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', () => {
+            downloadPdfBtn.innerHTML = '⏳ GENERATING...';
+            downloadPdfBtn.disabled = true;
+
+            let rate = currentExchangeRate;
+            let grandUsd = 0;
+            
+            let tableRows = '';
+            let imageGrid = '';
+
+            deckData.forEach(card => {
+                let p = card.selectedPrice || 1.00;
+                grandUsd += p * card.qty;
+                
+                let verStr = card.selectedVersionName || '';
+                let setMatch = verStr.match(/^([A-Z0-9]+)\s+\(#([^)]+)\)/);
+                let exp = setMatch ? setMatch[1] : 'N/A';
+                let num = setMatch ? setMatch[2] : 'N/A';
+                
+                let finish = 'Normal';
+                if(verStr.includes('Foil')) finish = 'Foil';
+                if(verStr.includes('Etched')) finish = 'Etched';
+
+                tableRows += `
+                    <tr>
+                        <td style="text-align:center; font-weight:bold; padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.qty}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${card.name}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${exp}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${num}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #cbd5e1;">${finish}</td>
+                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty).toFixed(2)}</td>
+                        <td style="text-align:right; padding: 6px; border-bottom: 1px solid #cbd5e1;">$${(p * card.qty * rate).toFixed(2)}</td>
+                    </tr>
+                `;
+
+                let imgUri = card.image_uris ? card.image_uris.normal : '';
+                if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
+                
+                if(imgUri) {
+                    imageGrid += `
+                        <div style="position:relative; width: 140px; margin: 10px;">
+                            <img src="${imgUri}" style="width:100%; border-radius:10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                            <div style="position:absolute; top:-10px; right:-10px; background:#0284c7; color:white; border-radius:50%; width:25px; height:25px; display:flex; align-items:center; justify-content:center; font-weight:bold; border:2px solid white; font-size:12px;">${card.qty}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            let reqTokens = getRequiredTokens();
+            let tokensHtml = '';
+            if (reqTokens.length > 0) {
+                tokensHtml = `
+                    <div style="margin-top: 20px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; page-break-inside: avoid;">
+                        <h3 style="margin-top:0; color: #b45309; font-size: 16px;">Required Tokens (Reference Only)</h3>
+                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">These tokens are required by the cards in this list but are NOT included in the quoted price.</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                `;
+                reqTokens.forEach(t => tokensHtml += `<li>${t}</li>`);
+                tokensHtml += `</ul></div>`;
+            }
+
+            let grandMxn = grandUsd * rate;
+
+            let htmlContent = `
+                <div style="font-family: Helvetica, Arial, sans-serif; padding: 20px; color: #0f172a; max-width: 800px; margin: 0 auto;">
+                    
+                    <div style="text-align: center; border-bottom: 3px solid #0284c7; padding-bottom: 15px; margin-bottom: 20px;">
+                        <img src="logo-light.png" style="height: 50px; margin-bottom: 5px;">
+                        <h1 style="margin: 0; color: #0f172a; text-transform: uppercase; font-size: 24px;">SCION OF THE SOULS</h1>
+                        <p style="margin: 5px 0; color: #475569; font-size: 12px;">Card Quotation & Order Summary</p>
+                    </div>
+                    
+                    <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 12px; display: flex; justify-content: space-between;">
+                        <div>
+                            <strong>WhatsApp:</strong> 55 3455 5002<br>
+                            <strong>Address:</strong> Avenida Pedro Henríquez Ureña 521, 04369 Coyoacán, CDMX<br>
+                        </div>
+                        <div style="text-align: right;">
+                            <strong>Exchange Rate:</strong> 1 USD = $${rate.toFixed(2)} MXN
+                        </div>
+                    </div>
+
+                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; page-break-inside: auto;">
+                        <thead>
+                            <tr style="background: #0f172a; color: white;">
+                                <th style="padding: 8px; text-align: center;">Qty</th>
+                                <th style="padding: 8px; text-align: left;">Card Name</th>
+                                <th style="padding: 8px; text-align: left;">Set</th>
+                                <th style="padding: 8px; text-align: left;">#</th>
+                                <th style="padding: 8px; text-align: left;">Finish</th>
+                                <th style="padding: 8px; text-align: right;">USD</th>
+                                <th style="padding: 8px; text-align: right;">MXN</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f1f5f9; font-weight: bold; font-size: 14px;">
+                                <td colspan="5" style="text-align:right; padding: 10px;">GRAND TOTAL:</td>
+                                <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandUsd.toFixed(2)}</td>
+                                <td style="text-align:right; color:#0284c7; padding: 10px;">$${grandMxn.toFixed(2)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    ${tokensHtml}
+
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 30px; border-top: 2px dashed #cbd5e1; padding-top: 20px;">
+                        ${imageGrid}
+                    </div>
+                </div>
+            `;
+
+            const element = document.createElement('div');
+            element.innerHTML = htmlContent;
+
+            const opt = {
+              margin:       0.3,
+              filename:     'Scion-Quote.pdf',
+              image:        { type: 'jpeg', quality: 0.98 },
+              html2canvas:  { scale: 2, useCORS: true },
+              jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            setTimeout(() => {
+                html2pdf().set(opt).from(element).save().then(() => {
+                    downloadPdfBtn.innerHTML = '📄 PDF';
+                    downloadPdfBtn.disabled = false;
+                });
+            }, 100);
+        });
+    }
+
+    
     // HTML DOWNLOAD
     if (downloadHtmlBtn) {
         downloadHtmlBtn.addEventListener('click', () => {
@@ -328,6 +531,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             });
+
+            let reqTokens = getRequiredTokens();
+            let tokensHtml = '';
+            if (reqTokens.length > 0) {
+                tokensHtml = `
+                    <div style="margin-top: 30px; padding: 15px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                        <h3 style="margin-top:0; color: #b45309; font-size: 16px;">Required Tokens (Reference Only)</h3>
+                        <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">These tokens are required by the cards in this list but are NOT included in the quoted price.</p>
+                        <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 14px;">
+                `;
+                reqTokens.forEach(t => tokensHtml += `<li>${t}</li>`);
+                tokensHtml += `</ul></div>`;
+            }
 
             let grandMxn = grandUsd * rate;
 
@@ -389,6 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         </tfoot>
                     </table>
 
+                    ${tokensHtml}
+
                     <div class="gallery">
                         ${imageGrid}
                     </div>
@@ -407,8 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
             URL.revokeObjectURL(url);
         });
     }
-
-    function parseDecklist(text) {
+function parseDecklist(text) {
         const lines = text.split('\n');
         const map = new Map();
         const regex = /^(?:(\d+)\s*x?\s+)?(.+)$/i;
@@ -433,22 +650,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.from(map.values());
     }
 
-    async function fetchScryfallAndPricingData(parsedList) {
+        async function fetchScryfallAndPricingData(parsedList) {
         let validCards = [];
         let invalidCards = [];
         const chunkSize = 50; 
+        let totalCards = parsedList.length;
+        let processedCards = 0;
         
         for (let i = 0; i < parsedList.length; i += chunkSize) {
             const chunk = parsedList.slice(i, i + chunkSize);
             for (const originalCard of chunk) {
+                processedCards++;
+                let percent = Math.round((processedCards / totalCards) * 100);
+                let remainingCards = totalCards - processedCards;
+                let estimatedSeconds = Math.ceil(remainingCards * 0.35); // Approx 350ms per card via API
+                
+                if (loadingProgress) {
+                    loadingProgress.innerText = `Processing: ${processedCards} of ${totalCards} cards | Est. Time Remaining: ~${estimatedSeconds}s`;
+                }
+                if (progressBarFill) {
+                    progressBarFill.style.width = `${percent}%`;
+                }
+
                 let cleanName = originalCard.name.split('/')[0].replace(/\s*\(.*\).*$/, '').trim();
                 try {
-                    const searchRes = await fetch(`https://api.scryfall.com/cards/search?q=%21\"${encodeURIComponent(cleanName)}\"+unique%3Aprints`);
+                    // Polite delay to prevent Scryfall 429 Rate Limit Errors
+                    await new Promise(resolve => setTimeout(resolve, 120));
+
+                    const searchRes = await fetch(`https://api.scryfall.com/cards/search?q=%21"${encodeURIComponent(cleanName)}"+unique%3Aprints`);
                     const searchData = await searchRes.json();
                     
                     if(searchData.object === "error") throw new Error("Not found");
 
                     let versions = [];
+                    let primaryCard = searchData.data[0];
+
                     if (searchData.data && searchData.data.length > 0) {
                         searchData.data.forEach(print => {
                             let pUsd = print.prices && print.prices.usd ? parseFloat(print.prices.usd) : null;
@@ -478,9 +714,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (pEtched !== null) versions.push({ versionDisplay: `${setName} - Etched Foil${treatmentStr} (#${collectorNum})`, versionName: `${setId} (#${collectorNum}) - Etched Foil`, price: pEtched, image_uris: print.image_uris || (print.card_faces ? print.card_faces[0].image_uris : null) });
                         });
                     }
-
-                    const directRes = await fetch(`https://api.scryfall.com/cards/named?exact=${encodeURIComponent(cleanName)}`);
-                    const primaryCard = await directRes.json();
 
                     if (primaryCard && primaryCard.name) {
                         let cardCopy = Object.assign({}, primaryCard);
