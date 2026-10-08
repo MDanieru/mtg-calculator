@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MTG Commander Calculator & Deck Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1>COMMANDER DECK BUILDER & CALCULATOR</h1>
+    </div>
+
+    <div class="input-container" id="input-section">
+        <p>Import your deck using a .TXT file, search for individual cards, or paste your bulk list below. Use the <strong>COMMANDER</strong> header right before your commander.</p>
+        
+        <div class="import-methods">
+            <div class="import-box" style="grid-column: 1 / -1;">
+                <label>📁 Upload .TXT File</label>
+                <input type="file" id="file-input" accept=".txt">
+            </div>
+        </div>
+
+        <div class="interactive-builder">
+            <h3>Individual Card Search</h3>
+            <div class="search-row">
+                <div style="position:relative; flex-grow:1;">
+                    <input type="text" id="card-search-input" placeholder="Type to search (e.g. Forest, Sol Ring)..." class="name-input" autocomplete="off" style="margin-bottom:0;">
+                    <div id="autocomplete-results" class="autocomplete-dropdown hidden"></div>
+                </div>
+                <input type="number" id="card-qty-input" value="1" min="1" max="99" class="qty-input">
+                <button id="add-single-card-btn" class="secondary-btn">Add</button>
+            </div>
+        </div>
+
+        <input type="text" id="deck-name-input" placeholder="Deck Name (e.g. VORINCLEX)" class="name-input">
+        <textarea id="decklist-input" placeholder="COMMANDER&#10;1 Vorinclex, Monstrous Raider&#10;&#10;CREATURES&#10;1 Allosaurus Shepherd&#10;1 Arbor Elf..."></textarea>
+        <button id="generate-btn">GENERATE DECK & QUOTE</button>
+        <div id="loading" class="hidden">Connecting to Scryfall API and fetching Star City Games versions... (This takes a few seconds)</div>
+    </div>
+
+    <div class="deck-container hidden" id="deck-section">
+        <div class="controls-top">
+            <button id="back-btn" class="back-button">← BACK TO EDITOR</button>
+        </div>
+
+        <div class="deck-breakdown-box">
+            
+            <!-- Deck Header Bar -->
+            <div class="deck-header-bar">
+                <h2 id="display-deck-name">DECK NAME</h2>
+                <div class="action-buttons">
+                    <div class="currency-converter-box">
+                        <label for="exchange-rate-input">Exchange Rate (USD to MXN):</label>
+                        <input type="number" id="exchange-rate-input" value="17" step="0.1" min="1" class="exchange-input">
+                    </div>
+                    <button class="icon-btn" id="download-btn" title="Download Tabular Quote (.TXT)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><polyline points="9 15 12 18 15 15"></polyline></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pricing Summary Bar -->
+            <div class="pricing-summary-bar">
+                <div>Total USD: <span id="grand-total-usd" class="price-tag">$0.00 USD</span></div>
+                <div>Total MXN: <span id="grand-total-mxn" class="price-tag">$0.00 MXN</span></div>
+            </div>
+
+            <!-- Breakdown Header -->
+            <div class="breakdown-header">
+                <div class="card-count-display">
+                    <span class="label">CARD COUNT</span>
+                    <span class="value" id="total-card-count">100 / 0</span>
+                </div>
+                <div class="custom-dropdown">
+                    <select id="sort-select">
+                        <option value="type">Overview (Card Type)</option>
+                        <option value="color">Color</option>
+                        <option value="cost">Mana Cost</option>
+                        <option value="rarity">Rarity</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Toggle Button -->
+            <div class="hide-breakdown-wrapper">
+                <button id="toggle-breakdown-btn" class="hide-breakdown-btn">HIDE DECK BREAKDOWN</button>
+            </div>
+
+            <!-- Dashboard Charts -->
+            <div class="dashboard" id="dashboard-section">
+                <div class="chart-box">
+                    <h3>MANA COST</h3>
+                    <div class="mana-count-label">CARD COUNT</div>
+                    <div class="chart-container">
+                        <canvas id="manaCurveChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3>MANA COLORS</h3>
+                    <div class="chart-container">
+                        <canvas id="colorPieChart"></canvas>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="box" style="background:#fcf1cd"></span> White</span>
+                        <span class="legend-item"><span class="box" style="background:#d3d3d3"></span> Black</span>
+                        <span class="legend-item"><span class="box" style="background:#f6a687"></span> Red</span>
+                        <span class="legend-item"><span class="box" style="background:#a2cca2"></span> Green</span>
+                        <span class="legend-item"><span class="box" style="background:#b3d1ff"></span> Blue</span>
+                        <span class="legend-item"><span class="box" style="background:#f5d064"></span> Multicolor</span>
+                        <span class="legend-item"><span class="box" style="background:#e5e7e6"></span> Colorless</span>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3>CARD TYPES</h3>
+                    <div class="chart-container">
+                        <canvas id="typePieChart"></canvas>
+                    </div>
+                    <div class="chart-legend">
+                        <span class="legend-item"><span class="box" style="background:#a2cca2"></span> Creature</span>
+                        <span class="legend-item"><span class="box" style="background:#d3d3d3"></span> Instant</span>
+                        <span class="legend-item"><span class="box" style="background:#b3d1ff"></span> Sorcery</span>
+                        <span class="legend-item"><span class="box" style="background:#62dbd6"></span> Artifact</span>
+                        <span class="legend-item"><span class="box" style="background:#fcf1cd"></span> Land</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Commander Showcase -->
+            <div class="commander-showcase hidden" id="commander-showcase">
+                <!-- Commander images inject here -->
+            </div>
+
+            <!-- Decklist Grid -->
+            <div class="decklist-grid" id="decklist-grid">
+                <!-- Cards inject here -->
+            </div>
+            
+            <!-- Tokens -->
+            <div class="tokens-section" id="tokens-section">
+                <h2 class="tokens-header">Tokens & Extras</h2>
+                <div class="tokens-display" id="tokens-display">
+                    <!-- Token images inject here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating image element for card hovers -->
+    <img id="card-hover-image" src="" alt="Card Preview" class="hidden">
+
+    <script src="app.js"></script>
+</body>
+</html>
