@@ -4,52 +4,60 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputSection = document.getElementById('input-section');
     const deckSection = document.getElementById('deck-section');
     const loadingText = document.getElementById('loading');
-    const hoverImg = document.getElementById('card-hover-image');
-    const totalCountEl = document.getElementById('total-card-count');
-    const displayDeckName = document.getElementById('display-deck-name');
-    const toggleBreakdownBtn = document.getElementById('toggle-breakdown-btn');
-    const dashboardSection = document.getElementById('dashboard-section');
-    const downloadBtn = document.getElementById('download-btn');
     
-    const deckNameInput = document.getElementById('deck-name-input');
+    const totalCountEl = document.getElementById('total-card-count');
+    const typeSummaryText = document.getElementById('type-summary-text');
+    const downloadBtn = document.getElementById('download-btn');
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    
     const decklistInput = document.getElementById('decklist-input');
-    const fileInput = document.getElementById('file-input');
     const searchInput = document.getElementById('card-search-input');
     const qtyInput = document.getElementById('card-qty-input');
     const addCardBtn = document.getElementById('add-single-card-btn');
     const autocompleteResults = document.getElementById('autocomplete-results');
+    
+    // Page 2 Search Elements
+    const searchInput2 = document.getElementById('card-search-input-2');
+    const autocompleteResults2 = document.getElementById('autocomplete-results-2');
+    const addCardBtn2 = document.getElementById('add-single-card-btn-2');
+
     const exchangeRateInput = document.getElementById('exchange-rate-input');
     const grandTotalUsdEl = document.getElementById('grand-total-usd');
     const grandTotalMxnEl = document.getElementById('grand-total-mxn');
     
-    const showcaseSection = document.getElementById('commander-showcase');
+    const notFoundSection = document.getElementById('not-found-section');
+    const notFoundList = document.getElementById('not-found-list');
+
+    // Modal elements
+    const imageModal = document.getElementById('image-modal');
+    const modalImg = document.getElementById('modal-img');
     
     let deckData = [];
-    let charts = [];
+    let notFoundCards = [];
     let searchTimeout = null;
 
-    if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                decklistInput.value = evt.target.result;
-                if (!deckNameInput.value) {
-                    deckNameInput.value = file.name.replace('.txt', '').replace(/-/g, ' ');
-                }
-            };
-            reader.readAsText(file);
-        });
-    }
+    // Theme Toggle
+    themeToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        if(document.body.classList.contains('light-theme')) {
+            themeToggleBtn.innerText = '🌙 Dark Mode';
+        } else {
+            themeToggleBtn.innerText = '☀️ Light Mode';
+        }
+    });
 
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
+    // Modal Close
+    imageModal.addEventListener('click', () => {
+        imageModal.classList.add('hidden');
+    });
+
+    function setupAutocomplete(inputEl, resultsEl) {
+        inputEl.addEventListener('input', (e) => {
             const query = e.target.value.trim();
             clearTimeout(searchTimeout);
             if (query.length < 2) {
-                autocompleteResults.classList.add('hidden');
-                autocompleteResults.innerHTML = '';
+                resultsEl.classList.add('hidden');
+                resultsEl.innerHTML = '';
                 return;
             }
 
@@ -58,20 +66,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(query)}`);
                     const data = await res.json();
                     if (data.data && data.data.length > 0) {
-                        autocompleteResults.innerHTML = '';
-                        data.data.slice(0, 8).forEach(cardName => {
+                        resultsEl.innerHTML = '';
+                        data.data.slice(0, 6).forEach(cardName => {
                             const item = document.createElement('div');
                             item.className = 'autocomplete-item';
                             item.innerText = cardName;
                             item.addEventListener('click', () => {
-                                searchInput.value = cardName;
-                                autocompleteResults.classList.add('hidden');
+                                inputEl.value = cardName;
+                                resultsEl.classList.add('hidden');
                             });
-                            autocompleteResults.appendChild(item);
+                            resultsEl.appendChild(item);
                         });
-                        autocompleteResults.classList.remove('hidden');
+                        resultsEl.classList.remove('hidden');
                     } else {
-                        autocompleteResults.classList.add('hidden');
+                        resultsEl.classList.add('hidden');
                     }
                 } catch (err) {
                     console.error("Autocomplete error:", err);
@@ -80,31 +88,67 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    setupAutocomplete(searchInput, autocompleteResults);
+    setupAutocomplete(searchInput2, autocompleteResults2);
+
     document.addEventListener('click', (e) => {
-        if (searchInput && autocompleteResults && !searchInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
+        if (!searchInput.contains(e.target) && !autocompleteResults.contains(e.target)) {
             autocompleteResults.classList.add('hidden');
+        }
+        if (!searchInput2.contains(e.target) && !autocompleteResults2.contains(e.target)) {
+            autocompleteResults2.classList.add('hidden');
         }
     });
 
-    if (addCardBtn) {
-        addCardBtn.addEventListener('click', () => {
-            const cName = searchInput.value.trim();
-            const cQty = parseInt(qtyInput.value) || 1;
-            if (!cName) return;
+    // Add on Page 1
+    addCardBtn.addEventListener('click', () => {
+        const cName = searchInput.value.trim();
+        const cQty = parseInt(qtyInput.value) || 1;
+        if (!cName) return;
 
-            let currentText = decklistInput.value;
-            if (currentText && !currentText.endsWith('\n')) currentText += '\n';
-            currentText += `${cQty} ${cName}\n`;
-            decklistInput.value = currentText;
+        let currentText = decklistInput.value;
+        if (currentText && !currentText.endsWith('\n')) currentText += '\n';
+        currentText += `${cQty} ${cName}\n`;
+        decklistInput.value = currentText;
 
-            searchInput.value = '';
-            qtyInput.value = '1';
-        });
-    }
+        searchInput.value = '';
+        qtyInput.value = '1';
+    });
+
+    // Quick Add on Page 2
+    addCardBtn2.addEventListener('click', async () => {
+        const cName = searchInput2.value.trim();
+        if(!cName) return;
+        
+        searchInput2.value = ''; // clear input
+        
+        // Check if already in deck
+        let existing = deckData.find(c => c.name.toLowerCase() === cName.toLowerCase());
+        if(existing) {
+            existing.qty += 1;
+            updateAppUI();
+            return;
+        }
+
+        loadingText.innerText = `Fetching ${cName}...`;
+        loadingText.classList.remove('hidden');
+        
+        let result = await fetchScryfallAndPricingData([{qty: 1, name: cName}]);
+        
+        if(result.valid.length > 0) {
+            deckData.push(result.valid[0]);
+        } else {
+            alert("Card not found: " + cName);
+        }
+        
+        loadingText.classList.add('hidden');
+        updateAppUI();
+    });
 
     if (exchangeRateInput) {
         exchangeRateInput.addEventListener('input', () => {
             updateGrandTotals();
+            renderDecklist(deckData, document.getElementById('sort-select').value);
         });
     }
 
@@ -112,29 +156,30 @@ document.addEventListener('DOMContentLoaded', () => {
         generateBtn.addEventListener('click', async () => {
             const rawMain = decklistInput.value;
             if (!rawMain || !rawMain.trim()) {
-                alert("Please paste or upload a decklist.");
+                alert("Please paste a list of cards.");
                 return;
             }
 
+            loadingText.innerText = "Connecting to database and fetching market prices... Please wait.";
             loadingText.classList.remove('hidden');
             generateBtn.disabled = true;
 
             try {
                 const parsedList = parseDecklist(rawMain);
-                deckData = await fetchScryfallAndPricingData(parsedList);
+                let result = await fetchScryfallAndPricingData(parsedList);
+                
+                deckData = result.valid;
+                notFoundCards = result.invalid;
                 
                 loadingText.classList.add('hidden');
                 generateBtn.disabled = false;
                 
                 inputSection.classList.add('hidden');
                 deckSection.classList.remove('hidden');
-                
-                let customName = deckNameInput.value.trim() || 'CUSTOM COMMANDER DECK';
-                displayDeckName.innerText = customName;
 
                 updateAppUI();
             } catch (err) {
-                console.error("Error generating deck:", err);
+                console.error("Error generating quote:", err);
                 loadingText.classList.add('hidden');
                 generateBtn.disabled = false;
                 alert("An error occurred while fetching card data. Check your connection.");
@@ -156,23 +201,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (toggleBreakdownBtn) {
-        toggleBreakdownBtn.addEventListener('click', () => {
-            dashboardSection.classList.toggle('hidden');
-            if (dashboardSection.classList.contains('hidden')) {
-                toggleBreakdownBtn.innerText = 'SHOW DECK BREAKDOWN';
-            } else {
-                toggleBreakdownBtn.innerText = 'HIDE DECK BREAKDOWN';
-            }
-        });
-    }
-
     if (downloadBtn) {
         downloadBtn.addEventListener('click', () => {
-            let dName = deckNameInput.value.trim() || 'Deck Quote';
             let rate = parseFloat(exchangeRateInput.value) || 17;
             
-            let txt = `DECK QUOTE: ${dName}\n`;
+            let txt = `CARD QUOTATION\n`;
             txt += `Exchange Rate: 1 USD = $${rate.toFixed(2)} MXN\n`;
             txt += `=========================================================================================\n\n`;
             
@@ -187,19 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return leftPart + ' '.repeat(padding) + rightPart;
             };
 
-            const commanders = deckData.filter(c => c.isCommander);
-            if (commanders.length > 0) {
-                txt += "COMMANDER:\n";
-                commanders.forEach(card => {
-                    let p = card.selectedPrice || 1.00;
-                    grandUsd += p * card.qty;
-                    txt += formatLine(card.qty, card.name, card.selectedVersionName || 'Non-foil', p) + '\n';
-                });
-                txt += "\n";
-            }
-            
-            txt += "DECK:\n";
-            deckData.filter(c => !c.isCommander).forEach(card => {
+            deckData.forEach(card => {
                 let p = card.selectedPrice || 1.00;
                 grandUsd += p * card.qty;
                 txt += formatLine(card.qty, card.name, card.selectedVersionName || 'Non-foil', p) + '\n';
@@ -213,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = dName.toLowerCase().replace(/\s+/g, '-') + '-quote.txt';
+            a.download = 'Card-Quote.txt';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -223,45 +244,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function parseDecklist(text) {
         const lines = text.split('\n');
-        const list = [];
+        const map = new Map();
         const regex = /^(?:(\d+)\s*x?\s+)?(.+)$/i;
-        let isCmdSection = false;
 
-        const categories = [
-            'deck', 'mainboard', 'creature', 'creatures', 'instant', 'instants', 
-            'sorcery', 'sorceries', 'instants & sorceries', 'artifact', 'artifacts', 
-            'enchantment', 'enchantments', 'planeswalker', 'planeswalkers', 
-            'artifacts, enchantments & planeswalkers', 'land', 'lands', 'other'
-        ];
+        const ignoreWords = ['commander', 'commanders', 'deck', 'mainboard', 'creature', 'creatures', 'instant', 'instants', 'sorcery', 'sorceries', 'artifact', 'artifacts', 'enchantment', 'enchantments', 'planeswalker', 'planeswalkers', 'land', 'lands', 'other'];
 
         lines.forEach(line => {
             let trimLine = line.trim();
             if (!trimLine) return;
 
             let lowerLine = trimLine.toLowerCase();
-            
-            if (lowerLine === 'commander' || lowerLine === 'commanders') {
-                isCmdSection = true;
-                return;
-            }
-
-            if (categories.includes(lowerLine)) {
-                isCmdSection = false;
-                return;
-            }
+            if (ignoreWords.includes(lowerLine)) return;
 
             const match = trimLine.match(regex);
             if (match && match[2]) {
                 let qty = match[1] ? parseInt(match[1]) : 1;
                 let name = match[2].trim();
-                list.push({ qty: qty, name: name, isCommander: isCmdSection });
+                let key = name.toLowerCase();
+
+                if (map.has(key)) {
+                    map.get(key).qty += qty;
+                } else {
+                    map.set(key, { qty: qty, name: name });
+                }
             }
         });
-        return list;
+        return Array.from(map.values());
     }
 
     async function fetchScryfallAndPricingData(parsedList) {
-        let allCards = [];
+        let validCards = [];
+        let invalidCards = [];
         const chunkSize = 50; 
         
         for (let i = 0; i < parsedList.length; i += chunkSize) {
@@ -273,6 +286,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const searchRes = await fetch(`https://api.scryfall.com/cards/search?q=%21\"${encodeURIComponent(cleanName)}\"+unique%3Aprints`);
                     const searchData = await searchRes.json();
                     
+                    if(searchData.object === "error") {
+                        throw new Error("Not found");
+                    }
+
                     let versions = [];
                     if (searchData.data && searchData.data.length > 0) {
                         searchData.data.forEach(print => {
@@ -330,45 +347,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (primaryCard && primaryCard.name) {
                         let cardCopy = Object.assign({}, primaryCard);
                         cardCopy.qty = originalCard.qty;
-                        cardCopy.isCommander = originalCard.isCommander;
                         cardCopy.availableVersions = versions.length > 0 ? versions : [{ versionDisplay: 'Default - Non-foil (#1)', versionName: 'DEF (#1) - Non-foil', price: 1.00, image_uris: primaryCard.image_uris }];
                         cardCopy.selectedVersionIndex = 0;
                         cardCopy.selectedPrice = cardCopy.availableVersions[0].price;
                         cardCopy.selectedVersionName = cardCopy.availableVersions[0].versionName;
-                        allCards.push(cardCopy);
+                        validCards.push(cardCopy);
                     } else {
-                        throw new Error("Not found");
+                        invalidCards.push(originalCard.name);
                     }
                 } catch (e) {
-                    allCards.push({
-                        name: originalCard.name,
-                        qty: originalCard.qty,
-                        isCommander: originalCard.isCommander,
-                        cmc: 0,
-                        color_identity: [],
-                        type_line: "Unknown",
-                        mana_cost: "",
-                        rarity: "common",
-                        availableVersions: [{ versionDisplay: 'Default - Non-foil (#1)', versionName: 'DEF (#1) - Non-foil', price: 1.00, image_uris: null }],
-                        selectedVersionIndex: 0,
-                        selectedPrice: 1.00,
-                        selectedVersionName: 'DEF (#1) - Non-foil',
-                        image_uris: { normal: "https://upload.wikimedia.org/wikipedia/en/a/aa/Magic_the_gathering-card_back.jpg" }
-                    });
+                    invalidCards.push(originalCard.name);
                 }
             }
         }
-        return allCards;
+        return { valid: validCards, invalid: invalidCards };
     }
 
     function updateAppUI() {
         let totalCount = deckData.reduce((sum, c) => sum + c.qty, 0);
-        totalCountEl.innerText = `${totalCount} / 0`;
-        renderCommander(deckData.filter(c => c.isCommander));
-        renderDashboard(deckData);
-        renderDecklist(deckData, document.getElementById('sort-select').value);
-        renderTokens(deckData);
+        totalCountEl.innerText = `${totalCount}`;
+        
         updateGrandTotals();
+        renderTypeSummary();
+        renderMissingCards();
+        renderDecklist(deckData, document.getElementById('sort-select').value);
+    }
+
+    function renderTypeSummary() {
+        let counts = { Creature: 0, Instant: 0, Sorcery: 0, Artifact: 0, Enchantment: 0, Planeswalker: 0, Land: 0 };
+        deckData.forEach(card => {
+            let tLine = (card.type_line || '').toLowerCase();
+            if (tLine.includes('creature')) counts.Creature += card.qty;
+            else if (tLine.includes('instant')) counts.Instant += card.qty;
+            else if (tLine.includes('sorcery')) counts.Sorcery += card.qty;
+            else if (tLine.includes('artifact')) counts.Artifact += card.qty;
+            else if (tLine.includes('enchantment')) counts.Enchantment += card.qty;
+            else if (tLine.includes('planeswalker')) counts.Planeswalker += card.qty;
+            else if (tLine.includes('land') || tLine.includes('forest') || tLine.includes('island') || tLine.includes('swamp') || tLine.includes('mountain') || tLine.includes('plains')) counts.Land += card.qty;
+        });
+
+        let summaryArr = [];
+        for(let key in counts) {
+            if(counts[key] > 0) summaryArr.push(`${key}: ${counts[key]}`);
+        }
+        typeSummaryText.innerText = summaryArr.join(' | ');
+    }
+
+    function renderMissingCards() {
+        if(notFoundCards.length > 0) {
+            notFoundSection.classList.remove('hidden');
+            notFoundList.innerHTML = '';
+            notFoundCards.forEach(name => {
+                let li = document.createElement('li');
+                li.innerText = name;
+                notFoundList.appendChild(li);
+            });
+        } else {
+            notFoundSection.classList.add('hidden');
+        }
     }
 
     function updateGrandTotals() {
@@ -397,25 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         return html;
-    }
-
-    function renderCommander(commanders) {
-        showcaseSection.innerHTML = '';
-        if (commanders.length === 0) {
-            showcaseSection.classList.add('hidden');
-            return;
-        }
-
-        showcaseSection.classList.remove('hidden');
-        commanders.forEach(card => {
-            let imgUri = card.image_uris ? card.image_uris.normal : '';
-            if (!imgUri && card.card_faces) imgUri = card.card_faces[0].image_uris.normal;
-            
-            const img = document.createElement('img');
-            img.src = imgUri;
-            img.alt = card.name;
-            showcaseSection.appendChild(img);
-        });
     }
 
     function renderDecklist(cards, sortMode) {
@@ -496,11 +513,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 let rate = parseFloat(exchangeRateInput ? exchangeRateInput.value : 17) || 17;
                 let currentLineMxn = currentLinePrice * rate;
                 
+                // SVG Trash Icon
+                const trashIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+
                 item.innerHTML = `
                     <div class="card-item-left">
-                        <button class="remove-card-btn" data-cardname="${card.name}" title="Remove Card">🗑️</button>
-                        <input type="number" class="card-qty-input-row" value="${card.qty}" min="1" max="999" data-cardname="${card.name}"> 
-                        <span class="card-name">${card.name}</span>
+                        <button class="remove-card-btn" data-cardname="${card.name}" title="Remove Card">${trashIcon}</button>
+                        
+                        <div class="qty-controls">
+                            <button class="qty-btn minus-btn">-</button>
+                            <span class="qty-display">${card.qty}</span>
+                            <button class="qty-btn plus-btn">+</button>
+                        </div>
+
+                        <span class="card-name" title="Tap to view image">${card.name}</span>
                         <div class="card-cost">${costHtml}</div>
                     </div>
                     <div class="card-pricing-info">
@@ -509,34 +535,36 @@ document.addEventListener('DOMContentLoaded', () => {
                         </select>
                         <div class="card-price-display">
                             $${currentLinePrice.toFixed(2)} USD<br>
-                            <span style="font-size:10px; opacity:0.7;">($${currentLineMxn.toFixed(2)} MXN)</span>
+                            <span style="font-size:10px; font-weight:normal; opacity:0.8;">($${currentLineMxn.toFixed(2)} MXN)</span>
                         </div>
                     </div>
                 `;
 
-                // Handle delete button
-                const removeBtn = item.querySelector('.remove-card-btn');
-                removeBtn.addEventListener('click', () => {
+                // Handle Delete
+                item.querySelector('.remove-card-btn').addEventListener('click', () => {
                     deckData = deckData.filter(c => c.name !== card.name);
                     updateAppUI();
                 });
 
-                // Handle quantity change
-                const qtyInputRow = item.querySelector('.card-qty-input-row');
-                qtyInputRow.addEventListener('change', (ev) => {
-                    let newQty = parseInt(ev.target.value) || 1;
-                    if (newQty < 1) newQty = 1;
-                    if (newQty > 999) newQty = 999;
-                    card.qty = newQty;
-                    updateAppUI();
+                // Handle +/- Quantity
+                item.querySelector('.minus-btn').addEventListener('click', () => {
+                    if (card.qty > 1) {
+                        card.qty--;
+                        updateAppUI();
+                    }
+                });
+                item.querySelector('.plus-btn').addEventListener('click', () => {
+                    if (card.qty < 99) {
+                        card.qty++;
+                        updateAppUI();
+                    }
                 });
 
-                // Handle version change
+                // Handle Version Change
                 const selectEl = item.querySelector('.version-select');
                 selectEl.addEventListener('change', (ev) => {
                     let idx = parseInt(ev.target.value);
                     let vObj = card.availableVersions[idx];
-
                     card.selectedVersionIndex = idx;
                     card.selectedPrice = vObj.price;
                     card.selectedVersionName = vObj.versionName;
@@ -547,207 +575,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateAppUI();
                 });
                 
-                // Eventos visuales anclados UNICAMENTE al nombre de la carta
+                // Card Name Image Modal
                 const cardNameEl = item.querySelector('.card-name');
-
-                cardNameEl.addEventListener('mouseenter', () => {
+                cardNameEl.addEventListener('click', () => {
                     let imgUri = card.image_uris ? card.image_uris.normal : '';
                     if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
-                    hoverImg.src = imgUri;
-                    hoverImg.style.transform = 'none';
-                    hoverImg.classList.remove('hidden');
-                });
-                cardNameEl.addEventListener('mousemove', (e) => {
-                    let xPos = e.clientX + 20;
-                    let imgH = hoverImg.offsetHeight || 340; 
-                    let yPos = e.clientY - (imgH / 2);
                     
-                    if (yPos < 10) yPos = 10;
-                    if (yPos + imgH > window.innerHeight) {
-                        yPos = window.innerHeight - imgH - 10;
+                    if(imgUri) {
+                        modalImg.src = imgUri;
+                        imageModal.classList.remove('hidden');
                     }
-
-                    hoverImg.style.left = xPos + 'px';
-                    hoverImg.style.top = yPos + 'px';
-                });
-                cardNameEl.addEventListener('mouseleave', () => {
-                    hoverImg.classList.add('hidden');
-                });
-
-                // Touch events para movil
-                cardNameEl.addEventListener('touchstart', (e) => {
-                    let imgUri = card.image_uris ? card.image_uris.normal : '';
-                    if (!imgUri && card.card_faces && card.card_faces[0].image_uris) imgUri = card.card_faces[0].image_uris.normal;
-                    hoverImg.src = imgUri;
-                    
-                    hoverImg.style.left = '50%';
-                    hoverImg.style.top = '50%';
-                    hoverImg.style.transform = 'translate(-50%, -50%)';
-                    hoverImg.classList.remove('hidden');
-                }, {passive: true});
-                
-                cardNameEl.addEventListener('touchend', () => {
-                    hoverImg.classList.add('hidden');
-                    hoverImg.style.transform = 'none';
                 });
 
                 col.appendChild(item);
             });
             grid.appendChild(col);
         });
-    }
-
-    function renderTokens(cards) {
-        const tokenDisplay = document.getElementById('tokens-display');
-        tokenDisplay.innerHTML = '';
-        
-        let tokenIds = new Set();
-        let tokens = [];
-
-        cards.forEach(card => {
-            if (card.all_parts) {
-                card.all_parts.forEach(part => {
-                    if ((part.component === 'token' || part.component === 'emblem') && !tokenIds.has(part.id)) {
-                        tokenIds.add(part.id);
-                        tokens.push(part);
-                    }
-                });
-            }
-        });
-
-        if (tokens.length === 0) {
-            document.getElementById('tokens-section').classList.add('hidden');
-            return;
-        }
-        
-        document.getElementById('tokens-section').classList.remove('hidden');
-
-        tokens.forEach(async tokenRef => {
-            try {
-                const res = await fetch(tokenRef.uri);
-                const tokenData = await res.json();
-                
-                let img1 = tokenData.image_uris ? tokenData.image_uris.normal : '';
-                let img2 = '';
-                
-                if (tokenData.card_faces && tokenData.card_faces.length > 1 && tokenData.card_faces[0].image_uris) {
-                    img1 = tokenData.card_faces[0].image_uris.normal;
-                    img2 = tokenData.card_faces[1].image_uris.normal;
-                }
-
-                const tCard = document.createElement('div');
-                tCard.className = 'token-card';
-                
-                let flipBtnHtml = img2 ? `<button class="flip-btn" onclick="this.previousElementSibling.src = this.previousElementSibling.src === '${img1}' ? '${img2}' : '${img1}'">⟳</button>` : '';
-
-                tCard.innerHTML = `
-                    <img src="${img1}" alt="${tokenData.name}">
-                    ${flipBtnHtml}
-                    <h4>${tokenData.name}</h4>
-                    <p style="color: #ea3601; font-size: 12px; margin-top: 10px;">TREATMENT<br><span style="color: white">Default</span></p>
-                `;
-                tokenDisplay.appendChild(tCard);
-            } catch (e) {
-                console.error("Failed to load token", e);
-            }
-        });
-    }
-
-    function renderDashboard(cards) {
-        charts.forEach(c => c.destroy());
-        charts = [];
-
-        let cmcCounts = { 0:0, 1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0 };
-        let typeCounts = { Creature:0, Instant:0, Sorcery:0, Artifact:0, Land:0 };
-        let colorCounts = { White:0, Black:0, Red:0, Green:0, Blue:0, Multicolor:0, Colorless:0 };
-        
-        cards.forEach(card => {
-            let tLine = card.type_line || '';
-            let cColors = card.color_identity || card.colors || [];
-            let cmc = card.cmc || 0;
-
-            if (!tLine.toLowerCase().includes('land')) {
-                let c = Math.floor(cmc);
-                if (c >= 9) c = 9;
-                if (cmcCounts[c] !== undefined) cmcCounts[c] += card.qty;
-                else cmcCounts[c] = card.qty;
-            }
-
-            if (tLine.toLowerCase().includes('creature')) typeCounts.Creature += card.qty;
-            else if (tLine.toLowerCase().includes('instant')) typeCounts.Instant += card.qty;
-            else if (tLine.toLowerCase().includes('sorcery')) typeCounts.Sorcery += card.qty;
-            else if (tLine.toLowerCase().includes('artifact')) typeCounts.Artifact += card.qty;
-            else if (tLine.toLowerCase().includes('land')) typeCounts.Land += card.qty;
-
-            if (cColors.length === 0) colorCounts.Colorless += card.qty;
-            else if (cColors.length > 1) colorCounts.Multicolor += card.qty;
-            else {
-                if (cColors.includes('W')) card.qty ? colorCounts.White += card.qty : 0;
-                if (cColors.includes('B')) colorCounts.Black += card.qty;
-                if (cColors.includes('R')) colorCounts.Red += card.qty;
-                if (cColors.includes('G')) colorCounts.Green += card.qty;
-                if (cColors.includes('U')) colorCounts.Blue += card.qty;
-            }
-        });
-
-        const chartOptionsPie = { 
-            responsive: true,
-            maintainAspectRatio: false, 
-            cutout: '65%', 
-            layout: { padding: 10 },
-            plugins: { legend: { display: false }, tooltip: { enabled: true } } 
-        };
-        const chartOptionsBar = { 
-            responsive: true,
-            maintainAspectRatio: false, 
-            layout: { padding: { top: 20, bottom: 5 } },
-            plugins: { legend: { display: false } }, 
-            scales: { 
-                x: { grid: { display: false }, ticks: { font: { size: 10 } } }, 
-                y: { display: false } 
-            } 
-        };
-
-        const ctxCurve = document.getElementById('manaCurveChart').getContext('2d');
-        charts.push(new Chart(ctxCurve, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(cmcCounts),
-                datasets: [{
-                    data: Object.values(cmcCounts),
-                    backgroundColor: '#e5e7e6',
-                    borderRadius: 20
-                }]
-            },
-            options: chartOptionsBar
-        }));
-
-        const ctxColor = document.getElementById('colorPieChart').getContext('2d');
-        charts.push(new Chart(ctxColor, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(colorCounts),
-                datasets: [{
-                    data: Object.values(colorCounts),
-                    backgroundColor: ['#fcf1cd', '#d3d3d3', '#f6a687', '#a2cca2', '#b3d1ff', '#f5d064', '#e5e7e6'],
-                    borderWidth: 0
-                }]
-            },
-            options: chartOptionsPie
-        }));
-
-        const ctxType = document.getElementById('typePieChart').getContext('2d');
-        charts.push(new Chart(ctxType, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(typeCounts),
-                datasets: [{
-                    data: Object.values(typeCounts),
-                    backgroundColor: ['#a2cca2', '#d3d3d3', '#b3d1ff', '#62dbd6', '#fcf1cd'],
-                    borderWidth: 0
-                }]
-            },
-            options: chartOptionsPie
-        }));
     }
 });
